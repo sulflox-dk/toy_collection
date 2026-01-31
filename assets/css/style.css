@@ -1,0 +1,148 @@
+/* assets/css/style.css */
+
+/* Sæt grundstørrelsen ned til 14px (0.875rem) */
+body {
+	font-size: 0.875rem;
+}
+
+/* Gør tabellerne lidt mere kompakte */
+.table td,
+.table th {
+	padding: 0.5rem 0.5rem; /* Mindre luft i cellerne */
+	font-size: 0.875rem;
+}
+
+/* Juster overskrifter lidt ned så de passer til proportionerne */
+h1,
+.h1 {
+	font-size: 2rem;
+}
+h2,
+.h2 {
+	font-size: 1.75rem;
+}
+h3,
+.h3 {
+	font-size: 1.5rem;
+}
+h4,
+.h4 {
+	font-size: 1.25rem;
+}
+h5,
+.h5 {
+	font-size: 1.1rem;
+}
+
+/* Gør badges lidt mindre og mere diskrete */
+.badge {
+	font-weight: 500;
+	font-size: 0.75em;
+}
+
+/* Knapper skal også følge med ned i størrelse */
+.btn {
+	font-size: 0.875rem;
+}
+
+/* assets/css/style.css */
+
+/* Gør alle inputs og selects mindre (14px) */
+.form-control,
+.form-select {
+	font-size: 0.875rem;
+}
+
+/* Sørg for at labels også følger med hvis de ikke allerede gør */
+.form-label {
+	font-size: 0.875rem;
+}
+
+/* 1. DIALOG (Rammen) */
+#appModal .modal-dialog {
+	max-width: 800px;
+	width: 90%;
+	height: 85vh; /* Fast højde */
+	margin: 7.5vh auto;
+	display: flex;
+	align-items: stretch;
+}
+
+/* 2. CONTENT (Den hvide boks) */
+#appModal .modal-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	max-height: 100%;
+	overflow: hidden;
+	border: none;
+	border-radius: 12px;
+}
+
+/* 3. HEADER (Ligger øverst) */
+#appModal .modal-header {
+	flex-shrink: 0; /* Må ikke skrumpe */
+	background: #fff;
+	z-index: 2;
+}
+
+/* 4. FORM (VIGTIGT! Det manglende led) */
+/* Dette gør at formen fylder al pladsen under headeren */
+#appModal .modal-content > form {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1; /* Udfyld resten af højden */
+	min-height: 0; /* Tillad børn at scrolle */
+	overflow: hidden; /* Ingen scrollbar på selve formen */
+}
+
+/* 5. BODY (Det der scroller INDE i formen) */
+#appModal .modal-body {
+	flex-grow: 1; /* Skub footer ned */
+	overflow-y: auto; /* Scroll her */
+	padding: 2rem;
+}
+
+/* 6. FOOTER (Ligger nederst i formen) */
+#appModal .modal-footer {
+	flex-shrink: 0;
+	background: #f8f9fa; /* Lys grå baggrund for at adskille */
+	border-top: 1px solid #dee2e6;
+}
+
+/* Universe Selection Button (Card Style) */
+.btn-universe-select {
+	width: 100%;
+	aspect-ratio: 1 / 1; /* Forces square */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+
+	/* Default State */
+	background-color: #fff;
+	border: 2px solid #dee2e6; /* Light Grey Border */
+	border-radius: 12px;
+	transition: all 0.2s ease;
+}
+
+/* Hover State */
+.btn-universe-select:hover {
+	border-color: #212529; /* Dark Border */
+	transform: translateY(-5px); /* Lift up slightly */
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Shadow on the BUTTON, not the image */
+	background-color: #fff; /* Keep background white so black text is visible */
+}
+
+/* Image Styling */
+.btn-universe-select img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	/* REMOVED: filter: drop-shadow(...) - This was causing the inner frame issue */
+}
+
+.border-dashed {
+	border-style: dashed !important;
+	border-width: 2px !important;
+}
