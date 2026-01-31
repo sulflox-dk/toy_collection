@@ -177,15 +177,42 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                 <?php foreach($childItems as $idx => $item): ?>
                     <div class="card mb-3 border border-secondary shadow-sm child-item-row">
                         <input type="hidden" name="items[<?= $idx ?>][id]" value="<?= $item['id'] ?>">
-                        <input type="hidden" name="items[<?= $idx ?>][master_toy_item_id]" value="<?= $item['master_toy_item_id'] ?>">
                         
                         <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                            <span class="fw-bold small text-uppercase">Item #<?= $idx + 1 ?> (ID: <?= $item['master_toy_item_id'] ?>)</span>
+                            <span class="fw-bold small text-uppercase">
+                                <i class="fas fa-puzzle-piece me-2"></i>
+                                <?= htmlspecialchars($item['part_name'] ?? 'Item') ?> 
+                                <span class="text-muted fw-normal">(<?= $item['part_type'] ?? 'Part' ?>)</span>
+                            </span>
                         </div>
+
                         <div class="card-body p-3 bg-white">
-                             <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="small text-muted">Condition</label>
+                            
+                            <div class="row g-3 mb-3 align-items-end">
+                                <div class="col-md-5">
+                                    <label class="form-label small text-muted mb-1">Item</label>
+                                    <select class="form-select form-select-sm item-part-select border-dark" name="items[<?= $idx ?>][master_toy_item_id]" required>
+                                        <?php if(isset($availableParts)): ?>
+                                            <?php foreach($availableParts as $part): ?>
+                                                <option value="<?= $part['id'] ?>" <?= $part['id'] == $item['master_toy_item_id'] ? 'selected' : '' ?>>
+                                                    <?= htmlspecialchars($part['name']) ?> (<?= $part['type'] ?>)
+                                                </option>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <option value="<?= $item['master_toy_item_id'] ?>" selected>Current Item (ID: <?= $item['master_toy_item_id'] ?>)</option>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="checkbox" name="items[<?= $idx ?>][is_loose]" value="1" id="loose_<?= $idx ?>" <?= $item['is_loose'] ? 'checked' : '' ?>>
+                                        <label class="form-check-label" for="loose_<?= $idx ?>">Loose</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label class="form-label small text-muted mb-1">Condition</label>
                                     <select class="form-select form-select-sm" name="items[<?= $idx ?>][condition]">
                                         <option value="">Select...</option>
                                         <?php foreach($conditions as $c): ?>
@@ -193,17 +220,80 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <div class="col-md-2">
-                                     <div class="form-check mt-4">
-                                        <input class="form-check-input" type="checkbox" name="items[<?= $idx ?>][is_loose]" value="1" <?= $item['is_loose'] ? 'checked' : '' ?>>
-                                        <label class="form-check-label small">Loose</label>
+
+                                <div class="col-md-3">
+                                    <label class="form-label small text-muted mb-1">Authenticity</label>
+                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][is_reproduction]">
+                                        <option value="">Select...</option>
+                                        <option value="Original" <?= ($item['is_reproduction'] ?? '') === 'Original' ? 'selected' : '' ?>>Original</option>
+                                        <option value="Reproduction" <?= ($item['is_reproduction'] ?? '') === 'Reproduction' ? 'selected' : '' ?>>Repro</option>
+                                        <option value="Unknown" <?= ($item['is_reproduction'] ?? '') === 'Unknown' ? 'selected' : '' ?>>Unknown</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <hr class="text-muted opacity-25 my-2">
+
+                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">Purchase Information (if different)</h6>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Purchase Date</label>
+                                    <input type="date" class="form-control form-control-sm" name="items[<?= $idx ?>][purchase_date]" value="<?= $item['purchase_date'] ?? '' ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Purchase Price</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">kr.</span>
+                                        <input type="number" step="0.01" class="form-control" name="items[<?= $idx ?>][purchase_price]" placeholder="Default" value="<?= $item['purchase_price'] ?? '' ?>">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="small text-muted">Comments</label>
-                                    <input type="text" class="form-control form-control-sm" name="items[<?= $idx ?>][user_comments]" value="<?= htmlspecialchars($item['user_comments'] ?? '') ?>">
+                                    <label class="form-label small text-muted mb-1">Source (Shop/Person)</label>
+                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][source_id]">
+                                        <option value="">Use General Source</option>
+                                        <?php foreach($sources as $s): ?>
+                                            <option value="<?= $s['id'] ?>" <?= ($item['source_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
-                             </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Acquisition Status</label>
+                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][acquisition_status]">
+                                        <option value="">Use General Status</option>
+                                        <?php foreach($statuses as $st): ?>
+                                            <option value="<?= $st ?>" <?= ($item['acquisition_status'] ?? '') == $st ? 'selected' : '' ?>><?= $st ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label small text-muted mb-1">Expected Arrival</label>
+                                    <input type="date" class="form-control form-control-sm" name="items[<?= $idx ?>][expected_arrival_date]" value="<?= $item['expected_arrival_date'] ?? '' ?>">
+                                </div>
+                            </div>
+
+                            <hr class="text-muted opacity-25 my-2">
+
+                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">Collection Metadata</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Personal Toy ID</label>
+                                    <input type="text" class="form-control form-control-sm" name="items[<?= $idx ?>][personal_item_id]" placeholder="e.g. SW-ACC-001" value="<?= htmlspecialchars($item['personal_item_id'] ?? '') ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Storage</label>
+                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][storage_id]">
+                                        <option value="">Use General Storage</option>
+                                        <?php foreach($storages as $loc): ?>
+                                            <option value="<?= $loc['id'] ?>" <?= ($item['storage_id'] ?? '') == $loc['id'] ? 'selected' : '' ?>><?= htmlspecialchars($loc['name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small text-muted mb-1">Comments</label>
+                                    <input type="text" class="form-control form-control-sm" name="items[<?= $idx ?>][user_comments]" placeholder="Specific notes..." value="<?= htmlspecialchars($item['user_comments'] ?? '') ?>">
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 <?php endforeach; ?>

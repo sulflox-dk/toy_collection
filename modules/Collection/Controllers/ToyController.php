@@ -3,17 +3,20 @@ namespace CollectionApp\Modules\Collection\Controllers;
 
 use CollectionApp\Kernel\Controller;
 use CollectionApp\Modules\Collection\Models\ToyModel;
-use CollectionApp\Modules\Catalog\Models\CatalogModel; // Husk denne nye use-linje!
+use CollectionApp\Modules\Catalog\Models\CatalogModel;
+use CollectionApp\Modules\Media\Models\MediaModel;
 
 class ToyController extends Controller {
 
     private $toyModel;
     private $catalogModel;
+    private $mediaModel;
 
     public function __construct() {
         parent::__construct();
         $this->toyModel = new ToyModel();
-        $this->catalogModel = new CatalogModel(); // Vi instansierer den nye model
+        $this->catalogModel = new CatalogModel();
+        $this->mediaModel = new MediaModel();
     }
 
     public function add() {
@@ -99,16 +102,19 @@ class ToyController extends Controller {
         
         $toy = $this->toyModel->getToyById($id);
         if (!$toy) {
-            echo '<div class="alert alert-danger m-3">Error: Toy not found (ID: ' . $id . ')</div>';
-            exit;
+             echo '<div class="alert alert-danger m-3">Error: Toy not found (ID: ' . $id . ')</div>';
+             exit;
         }
+
+        $availableParts = $this->catalogModel->getMasterToyItems($toy['master_toy_id']);
 
         $data = [
             'mode' => 'edit',
             'toy' => $toy,
             'childItems' => $this->toyModel->getChildItems($id),
+            'availableParts' => $availableParts, // NYT: Send listen af mulige dele med
             
-            // HER SKER MAGIEN: Vi bruger nu CatalogModel til at hente de afhængige dropdowns
+            // ... (resten af dine dropdowns er uændret)
             'universes'     => $this->catalogModel->getAllUniverses(),
             'manufacturers' => $this->catalogModel->getManufacturersByUniverse($toy['universe_id']),
             'lines'         => $this->catalogModel->getLinesByManufacturer($toy['manufacturer_id']),
@@ -191,7 +197,7 @@ class ToyController extends Controller {
         $data = [
             'toy' => $toy,
             'items' => $this->toyModel->getItemsForMedia($toyId),
-            'available_tags' => $this->toyModel->getMediaTags()
+            'available_tags' => $this->mediaModel->getMediaTags()
         ];
 
         $this->view->renderPartial('add_media_modal', $data, 'Collection');

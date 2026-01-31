@@ -101,4 +101,8 @@ class MediaModel {
 
         return false;
     }
+
+    public function getMediaTags() {
+        return $this->db->query("SELECT * FROM media_tags ORDER BY tag_name ASC")->fetchAll();
+    }
 }

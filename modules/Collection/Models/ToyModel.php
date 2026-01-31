@@ -59,7 +59,17 @@ class ToyModel {
     // --- CHILD ITEMS CRUD ---
 
     public function getChildItems(int $parentId) {
-        return $this->db->query("SELECT * FROM collection_toy_items WHERE collection_toy_id = :id", ['id' => $parentId])->fetchAll();
+        // Vi joine med master_toy_items og subjects for at få navnet (fx "Luke Skywalker")
+        return $this->db->query("
+            SELECT cti.*, 
+                   s.name as part_name, 
+                   s.type as part_type
+            FROM collection_toy_items cti
+            LEFT JOIN master_toy_items mti ON cti.master_toy_item_id = mti.id
+            LEFT JOIN subjects s ON mti.subject_id = s.id
+            WHERE cti.collection_toy_id = :id
+            ORDER BY s.type = 'Character' DESC, s.name ASC
+        ", ['id' => $parentId])->fetchAll();
     }
 
     public function createItem(array $data) {
@@ -141,12 +151,6 @@ class ToyModel {
             ['pid' => $parentId]
         )->fetchAll();
     }
-
-    public function getMediaTags() {
-        return $this->db->query("SELECT * FROM media_tags ORDER BY tag_name ASC")->fetchAll();
-    }
-
-    // --- HELPERS ---
 
     public function getEnumValues($table, $column) {
         $sql = "SHOW COLUMNS FROM $table LIKE '$column'";

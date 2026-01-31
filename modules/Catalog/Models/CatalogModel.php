@@ -39,4 +39,14 @@ class CatalogModel {
     public function getStorageUnits() {
         return $this->db->query("SELECT * FROM storage_units ORDER BY name ASC")->fetchAll();
     }
+
+    public function getMasterToyItems(int $masterToyId) {
+        return $this->db->query("
+            SELECT mti.id, s.name, s.type
+            FROM master_toy_items mti
+            JOIN subjects s ON mti.subject_id = s.id
+            WHERE mti.master_toy_id = :tid
+            ORDER BY s.type = 'Character' DESC, s.name ASC
+        ", ['tid' => $masterToyId])->fetchAll();
+    }
 }
