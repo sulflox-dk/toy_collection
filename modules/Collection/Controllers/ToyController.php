@@ -45,7 +45,8 @@ class ToyController extends Controller {
     public function store() {
         // (Uændret logik - bruger stadig ToyModel til at gemme)
         if (empty($_POST['manufacturer_id']) || empty($_POST['line_id']) || empty($_POST['master_toy_id'])) {
-            die("Error: Please select Universe, Manufacturer, Line, and Toy.");
+            echo '<div class="alert alert-danger m-3">Error: Please select Universe, Manufacturer, Line, and Toy.</div>';
+            exit;
         }
 
         $parentData = [
@@ -97,7 +98,10 @@ class ToyController extends Controller {
         $id = (int)($_GET['id'] ?? 0);
         
         $toy = $this->toyModel->getToyById($id);
-        if (!$toy) die("Toy not found");
+        if (!$toy) {
+            echo '<div class="alert alert-danger m-3">Error: Toy not found (ID: ' . $id . ')</div>';
+            exit;
+        }
 
         $data = [
             'mode' => 'edit',
@@ -125,7 +129,11 @@ class ToyController extends Controller {
     public function update() {
         // (Uændret logik - bruger stadig ToyModel til at gemme)
         $id = (int)($_POST['id'] ?? 0);
-        if (!$id) die("Missing ID");
+        if (!$id) {
+            http_response_code(400); // Fortæl browseren det er en fejl
+            echo "Error: Missing ID";
+            exit;
+        }
 
         $parentData = [
             'master_toy_id' => $_POST['master_toy_id'],
@@ -175,7 +183,10 @@ class ToyController extends Controller {
         $toyId = (int)($_GET['id'] ?? 0);
         
         $toy = $this->toyModel->getMediaStepInfo($toyId);
-        if (!$toy) die("Toy not found");
+        if (!$toy) {
+            echo '<div class="alert alert-danger m-3">Error: Toy not found. Cannot load media upload.</div>';
+            exit;
+        }
 
         $data = [
             'toy' => $toy,

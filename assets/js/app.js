@@ -1,6 +1,6 @@
 const App = {
 	// Tjek at URL'en passer til din installation
-	baseUrl: 'http://localhost/toy_collection/',
+	baseUrl: typeof SITE_URL !== 'undefined' ? SITE_URL : '/',
 
 	/**
 	 * Åbner den globale modal og henter indhold
