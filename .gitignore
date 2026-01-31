@@ -1,0 +1,23 @@
+# --- SIKKERHED ---
+# Ignorer konfigurationsfilen med dine database-kodeord!
+config/config.php
+
+# --- FILER & MAPPER ---
+# Ignorer uploadede billeder (de fylder for meget og hører til lokalt)
+assets/uploads/*
+# Men behold selve mappen (hvis der ligger en .gitkeep fil)
+!assets/uploads/.gitkeep
+
+# Ignorer sql_dumps
+sql_dumps/
+
+# --- SYSTEM & EDITOR ---
+# Ignorer VS Code indstillinger
+.vscode/
+# Ignorer Mac/Windows systemfiler
+.DS_Store
+Thumbs.db
+
+# --- ANDET ---
+# Ignorer evt. error logs
+*.log

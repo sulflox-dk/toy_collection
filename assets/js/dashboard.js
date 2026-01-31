@@ -11,21 +11,27 @@ document.addEventListener('DOMContentLoaded', function () {
 			e.preventDefault();
 			const id = btn.dataset.id;
 
-			// Hent Edit Modal HTML
+			// RETTET: Vi bruger 'appModal' (den globale fra main.php)
+			const modalEl = document.getElementById('appModal');
+
+			// Optional: Vis spinner mens vi venter (god UX)
+			if (modalEl.querySelector('.modal-body')) {
+				modalEl.querySelector('.modal-body').innerHTML =
+					'<div class="text-center py-5"><div class="spinner-border"></div></div>';
+			}
+
 			fetch(
 				`${App.baseUrl}?module=Collection&controller=Toy&action=edit&id=${id}`,
 			)
 				.then((res) => res.text())
 				.then((html) => {
-					const modalEl = document.getElementById('addToyModal');
-					const modalBody = modalEl.querySelector('.modal-content');
-					modalBody.innerHTML = html;
+					// Vi opdaterer indholdet i modal-content
+					const modalContent = modalEl.querySelector('.modal-content');
+					modalContent.innerHTML = html;
 
-					// Vis modal
 					const modal = new bootstrap.Modal(modalEl);
 					modal.show();
 
-					// Genaktiver dropdown logik fra collection.js
 					if (typeof App.initDependentDropdowns === 'function') {
 						App.initDependentDropdowns();
 					}
@@ -41,20 +47,20 @@ document.addEventListener('DOMContentLoaded', function () {
 			e.preventDefault();
 			const id = btn.dataset.id;
 
-			// Hent Media Modal HTML
+			// RETTET: Vi bruger 'appModal'
+			const modalEl = document.getElementById('appModal');
+
 			fetch(
 				`${App.baseUrl}?module=Collection&controller=Toy&action=media_step&id=${id}`,
 			)
 				.then((res) => res.text())
 				.then((html) => {
-					const modalEl = document.getElementById('addToyModal');
-					const modalBody = modalEl.querySelector('.modal-content');
-					modalBody.innerHTML = html;
+					const modalContent = modalEl.querySelector('.modal-content');
+					modalContent.innerHTML = html;
 
 					const modal = new bootstrap.Modal(modalEl);
 					modal.show();
 
-					// Genaktiver upload logik fra collection.js
 					if (typeof App.initMediaUploads === 'function') {
 						App.initMediaUploads();
 					}

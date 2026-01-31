@@ -135,10 +135,10 @@ class ToyController extends Controller {
     public function edit() {
         $id = (int)($_GET['id'] ?? 0);
         
-        // 1. Hent Toy Data
+        // 1. RETTELSE HER: Vi henter universe_id fra LINE (l), ikke Manufacturer (m)
         $toy = $this->db->query("
             SELECT ct.*, 
-                   mt.line_id, l.manufacturer_id, m.universe_id,
+                   mt.line_id, l.manufacturer_id, l.universe_id, 
                    mt.name as toy_name
             FROM collection_toys ct
             JOIN master_toys mt ON ct.master_toy_id = mt.id
@@ -153,9 +153,19 @@ class ToyController extends Controller {
         // 2. Hent Child Items
         $childItems = $this->db->query("SELECT * FROM collection_toy_items WHERE collection_toy_id = :id", ['id' => $id])->fetchAll();
 
-        // 3. Hent Dropdown data baseret på det valgte univers/line (så dropdowns ikke er tomme)
+        // 3. Hent Dropdowns
         $universes = $this->db->query("SELECT * FROM universes ORDER BY sort_order ASC")->fetchAll();
-        $manufacturers = $this->db->query("SELECT * FROM manufacturers WHERE universe_id = :uid ORDER BY name ASC", ['uid' => $toy['universe_id']])->fetchAll();
+        
+        // RETTELSE HER: Vi kan ikke bare sige "WHERE universe_id". 
+        // Vi skal joine med toy_lines for at finde producenter i dette univers.
+        $manufacturers = $this->db->query("
+            SELECT DISTINCT m.* FROM manufacturers m
+            JOIN toy_lines l ON m.id = l.manufacturer_id
+            WHERE l.universe_id = :uid 
+            ORDER BY m.name ASC", 
+            ['uid' => $toy['universe_id']]
+        )->fetchAll();
+
         $lines = $this->db->query("SELECT * FROM toy_lines WHERE manufacturer_id = :mid ORDER BY name ASC", ['mid' => $toy['manufacturer_id']])->fetchAll();
         $masterToys = $this->db->query("SELECT * FROM master_toys WHERE line_id = :lid ORDER BY name ASC", ['lid' => $toy['line_id']])->fetchAll();
 
@@ -167,7 +177,7 @@ class ToyController extends Controller {
         $completeness = $this->getEnumValues('collection_toys', 'completeness_grade');
 
         $data = [
-            'mode' => 'edit', // Vigtigt flag!
+            'mode' => 'edit',
             'toy' => $toy,
             'childItems' => $childItems,
             'universes' => $universes,
