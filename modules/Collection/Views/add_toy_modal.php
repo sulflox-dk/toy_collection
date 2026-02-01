@@ -1,7 +1,7 @@
 <?php
 // Bestem om vi retter eller opretter
 $isEdit = isset($mode) && $mode === 'edit';
-$action = $isEdit ? 'update' : 'store';
+$action = $isEdit ? 'update' : 'create';
 $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 ?>
 
@@ -16,10 +16,10 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
         <input type="hidden" name="id" value="<?= $toyData['id'] ?>">
     <?php endif; ?>
 
-    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+    <div class="modal-body p-4 modal-body-custom">
         
-        <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">General Toy Information</h6>
-        <div class="card shadow-sm mb-4 border-0">
+        <h6 class="section-label">General Toy Information</h6>
+        <div class="card form-section-card">
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -76,8 +76,8 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
             </div>
         </div>
 
-        <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">Purchase Information</h6>
-        <div class="card shadow-sm mb-4 border-0">
+        <h6 class="section-label">Purchase Information</h6>
+        <div class="card form-section-card">
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -112,8 +112,8 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
             </div>
         </div>
 
-        <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">Collection Metadata</h6>
-        <div class="card shadow-sm mb-4 border-0">
+        <h6 class="section-label">Collection Metadata</h6>
+        <div class="card form-section-card">
             <div class="card-body">
                 <div class="row g-3 align-items-end">
 
@@ -166,10 +166,8 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="text-uppercase text-muted fw-bold mb-0" style="font-size: 0.75rem; letter-spacing: 1px;">
-                Included Items (Parts/Figures)
-            </h6>
-            <span class="badge bg-secondary" id="itemCountBadge"><?= isset($childItems) ? count($childItems) : 0 ?> items</span>
+            <h6 class="section-label mb-0">Included Items (Parts/Figures)</h6>
+            <span class="badge item-count-badge" id="itemCountBadge"><?= isset($childItems) ? count($childItems) : 0 ?> items</span>
         </div>
         
         <div id="childItemsContainer">
@@ -178,11 +176,11 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                     <div class="card mb-3 border border-secondary shadow-sm child-item-row">
                         <input type="hidden" name="items[<?= $idx ?>][id]" value="<?= $item['id'] ?>">
                         
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                            <span class="fw-bold small text-uppercase">
+                        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2">
+                            <span class="text-uppercase">
                                 <i class="fas fa-puzzle-piece me-2"></i>
                                 <?= htmlspecialchars($item['part_name'] ?? 'Item') ?> 
-                                <span class="text-muted fw-normal">(<?= $item['part_type'] ?? 'Part' ?>)</span>
+                                <span class="text-muted fw-normal lowercase-text">(<?= $item['part_type'] ?? 'Part' ?>)</span>
                             </span>
                         </div>
 
@@ -234,7 +232,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 
                             <hr class="text-muted opacity-25 my-2">
 
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">Purchase Information (if different)</h6>
+                            <h6 class="text-muted text-uppercase mb-2 small-section-header">Purchase Information (if different)</h6>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted mb-1">Purchase Date</label>
@@ -273,7 +271,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 
                             <hr class="text-muted opacity-25 my-2">
 
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">Collection Metadata</h6>
+                            <h6 class="text-muted text-uppercase mb-2 small-section-header">Collection Metadata</h6>
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted mb-1">Personal Toy ID</label>
@@ -316,8 +314,8 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 <template id="childRowTemplate">
     <div class="card mb-4 border border-secondary shadow-sm child-item-row">
         
-        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-            <span class="fw-bold small text-uppercase"><i class="fas fa-puzzle-piece me-2"></i>Item #<span class="row-number">1</span></span>
+        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2">
+            <span class="text-uppercase"><i class="fas fa-puzzle-piece me-2"></i>Item #<span class="row-number">1</span></span>
             <button type="button" class="btn-close btn-sm remove-row-btn" aria-label="Remove"></button>
         </div>
 
@@ -360,7 +358,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 
             <hr class="text-muted opacity-25 my-2">
 
-            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">Purchase Information (if different)</h6>
+            <h6 class="text-muted text-uppercase mb-2 small-section-header">Purchase Information (if different)</h6>
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Purchase Date</label>
@@ -399,7 +397,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 
             <hr class="text-muted opacity-25 my-2">
 
-            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">Collection Metadata</h6>
+            <h6 class="text-muted text-uppercase mb-2 small-section-header">Collection Metadata</h6>
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Personal Toy ID</label>

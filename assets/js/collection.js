@@ -2,7 +2,7 @@
  * Collection Module Logic
  */
 
-// --- DEL 1: FORM LOGIK (Trin 2 - Add Toy & Items) ---
+// --- DEL 1: FORM LOGIK (Trin 2 - Add/Edit Toy & Items) ---
 App.initDependentDropdowns = function () {
 	console.log('Initializing Toy Form logic...');
 
@@ -76,7 +76,7 @@ App.initDependentDropdowns = function () {
 		if (!lineId) return;
 
 		fetch(
-			`${App.baseUrl}?module=Collection&controller=Api&action=get_items&line_id=${lineId}`,
+			`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toys&line_id=${lineId}`,
 		)
 			.then((res) => res.json())
 			.then((data) =>
@@ -91,7 +91,7 @@ App.initDependentDropdowns = function () {
 			return;
 		}
 		fetch(
-			`${App.baseUrl}?module=Collection&controller=Api&action=get_toy_parts&master_toy_id=${toyId}`,
+			`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${toyId}`,
 		)
 			.then((res) => res.json())
 			.then((data) => {
@@ -123,7 +123,7 @@ App.initDependentDropdowns = function () {
 		if (availableParts.length === 0 && toySelect.value) {
 			try {
 				const res = await fetch(
-					`${App.baseUrl}?module=Collection&controller=Api&action=get_toy_parts&master_toy_id=${toySelect.value}`,
+					`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${toySelect.value}`,
 				);
 				availableParts = await res.json();
 			} catch (e) {
@@ -173,11 +173,19 @@ App.initDependentDropdowns = function () {
 		if (countBadge) countBadge.textContent = `${count} items`;
 	};
 
+	// Event listeners
 	if (universeSelect) {
 		universeSelect.addEventListener('change', (e) =>
 			loadManufacturers(e.target.value),
 		);
-		if (universeSelect.value) loadManufacturers(universeSelect.value);
+		// Edit mode fix: Kun load hvis listen er tom
+		if (
+			universeSelect.value &&
+			manufacturerSelect &&
+			manufacturerSelect.options.length <= 1
+		) {
+			loadManufacturers(universeSelect.value);
+		}
 	}
 	if (manufacturerSelect)
 		manufacturerSelect.addEventListener('change', (e) =>
@@ -189,7 +197,7 @@ App.initDependentDropdowns = function () {
 		toySelect.addEventListener('change', (e) => loadParts(e.target.value));
 	if (btnAddItem) btnAddItem.addEventListener('click', addItemRow);
 
-	// --- FORM SUBMIT VIA AJAX ---
+	// Ajax submit
 	const form = document.getElementById('addToyForm');
 	if (form) {
 		form.addEventListener('submit', function (e) {
@@ -197,7 +205,7 @@ App.initDependentDropdowns = function () {
 			const rowCount = container.querySelectorAll('.child-item-row').length;
 			if (rowCount === 0) {
 				alert(
-					'You must add at least one Item (Figure/Part) to this set before saving.',
+					'You must add at least one Item (Figure/Part) before saving.',
 				);
 				btnAddItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
 				return;
@@ -217,8 +225,6 @@ App.initDependentDropdowns = function () {
 						modalContent.innerHTML = html;
 						if (typeof App.initMediaUploads === 'function')
 							App.initMediaUploads();
-					} else {
-						alert('Error: Could not update modal. Please refresh.');
 					}
 				})
 				.catch((err) => {
@@ -230,178 +236,34 @@ App.initDependentDropdowns = function () {
 	}
 };
 
-// --- DEL 2: MEDIA UPLOAD LOGIK (Trin 3 - Add Photos) ---
+// --- DEL 2: MEDIA UPLOAD LOGIK (Trin 3 - Add/Manage Photos) ---
 App.initMediaUploads = function () {
 	console.log('Initializing Media Uploader...');
 
 	const containerEl = document.getElementById('media-upload-container');
-	if (containerEl && containerEl.dataset.tags) {
-		try {
-			window.availableMediaTags = JSON.parse(containerEl.dataset.tags);
-		} catch (e) {
-			console.error('Failed to parse tags JSON', e);
-		}
-	}
 
-	const inputs = document.querySelectorAll('.upload-input');
-	inputs.forEach((input) => {
-		input.addEventListener('change', function () {
-			if (this.files && this.files.length > 0) {
-				Array.from(this.files).forEach((file) => {
-					handleUpload(file, this.dataset.context, this.dataset.id, this);
-				});
-			}
-		});
-	});
-
-	const handleUpload = (file, context, id, inputElement) => {
-		const formData = new FormData();
-		formData.append('file', file);
-		formData.append('target_context', context);
-		formData.append('target_id', id);
-
-		const labelBtn = inputElement.parentElement;
-		const icon = labelBtn.querySelector('i');
-		const originalIconClass = icon ? icon.className : 'fas fa-plus me-1';
-		if (icon) icon.className = 'fas fa-spinner fa-spin me-1';
-		labelBtn.classList.add('disabled');
-
-		fetch(`${App.baseUrl}?module=Media&controller=Media&action=upload`, {
-			method: 'POST',
-			body: formData,
-		})
-			.then((response) => response.json())
-			.then((data) => {
-				if (data.success) {
-					let viewType =
-						context === 'collection_parent' ? 'parent' : 'child';
-					const previewId = `preview-${viewType}-${id}`;
-					const container = document.getElementById(previewId);
-					if (container) createMediaRow(container, data);
-				} else {
-					alert('Upload failed: ' + (data.error || 'Unknown error'));
-				}
+	// 1. HELPERS
+	const buildTagPills = (activeTags) => {
+		if (!window.availableMediaTags) return '';
+		return window.availableMediaTags
+			.map((tag) => {
+				const isActive =
+					activeTags && activeTags.some((t) => t.id == tag.id);
+				const bgClass = isActive
+					? 'bg-dark text-white'
+					: 'bg-light text-dark';
+				return `
+                <span class="badge rounded-pill ${bgClass} border tag-pill" data-id="${tag.id}">
+                    ${tag.tag_name}
+                </span>`;
 			})
-			.catch((error) => {
-				console.error('Error:', error);
-				alert('System error during upload');
-			})
-			.finally(() => {
-				if (icon) icon.className = originalIconClass;
-				labelBtn.classList.remove('disabled');
-				inputElement.value = '';
-			});
-	};
-
-	// HJÆLPEFUNKTION: BYG HTML FOR BILLED-RÆKKE
-	const createMediaRow = (container, data) => {
-		const rowDiv = document.createElement('div');
-		rowDiv.className =
-			'd-flex gap-4 align-items-start bg-white p-3 border rounded shadow-sm fade-in-row mb-3';
-
-		// --- VENSTRE KOLONNE: BILLEDE + TOOLS ---
-		const imgCol = document.createElement('div');
-		imgCol.className = 'd-flex flex-column align-items-center gap-2';
-		imgCol.style.width = '120px';
-		imgCol.style.flexShrink = '0';
-
-		imgCol.innerHTML = `
-            <div style="width: 100px; height: 100px; background: url('${data.file_path}') center/cover no-repeat; border-radius: 4px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></div>
-            
-            <div class="form-check form-check-sm user-select-none mt-1">
-                <input class="form-check-input media-main-input" type="radio" name="main_image_${data.media_id}" id="main_${data.media_id}" style="cursor: pointer;">
-                <label class="form-check-label small text-muted" for="main_${data.media_id}" style="cursor: pointer;">Main Image</label>
-            </div>
-
-            <span class="badge bg-success opacity-0 transition-opacity save-indicator" style="font-weight: normal; font-size: 0.65rem;">
-                <i class="fas fa-check me-1"></i>Saved
-            </span>
-        `;
-
-		// --- HØJRE KOLONNE: INPUTS ---
-		const infoCol = document.createElement('div');
-		infoCol.className = 'flex-grow-1';
-
-		// 1. PILLS HTML
-		let tagPillsHtml = '<div class="d-flex flex-wrap gap-2 tag-container">';
-		if (window.availableMediaTags) {
-			window.availableMediaTags.forEach((tag) => {
-				// Vi beholder 'border' altid for at undgå at knappen ændrer størrelse
-				tagPillsHtml += `
-                    <span class="badge rounded-pill bg-light text-dark border user-select-none tag-pill px-3 py-2" 
-                          style="cursor: pointer; font-weight: normal;" 
-                          data-id="${tag.id}">
-                        ${tag.tag_name}
-                    </span>`;
-			});
-		}
-		tagPillsHtml += '</div>';
-
-		infoCol.innerHTML = `
-            <div class="row">
-                <div class="col-md-12 mb-3">
-                    <label class="form-label small text-muted mb-2">Tags</label>
-                    ${tagPillsHtml}
-                </div>
-                <div class="col-md-12">
-                    <label class="form-label small text-muted mb-2">Comments</label>
-                    <textarea class="form-control media-comment-input" rows="2" placeholder="Describe photo (e.g. 'Damage detail')"></textarea>
-                </div>
-            </div>
-        `;
-
-		rowDiv.appendChild(imgCol);
-		rowDiv.appendChild(infoCol);
-		container.appendChild(rowDiv);
-
-		// --- EVENT LISTENERS ---
-
-		// 1. PILLS TOGGLE (Blå/Sort)
-		const pills = rowDiv.querySelectorAll('.tag-pill');
-		pills.forEach((pill) => {
-			pill.addEventListener('click', function () {
-				if (this.classList.contains('bg-dark')) {
-					// Gør inaktiv
-					this.classList.replace('bg-dark', 'bg-light');
-					this.classList.replace('text-white', 'text-dark');
-					// 'border' forbliver
-				} else {
-					// Gør aktiv (Sort/Mørk)
-					this.classList.replace('bg-light', 'bg-dark');
-					this.classList.replace('text-dark', 'text-white');
-					// 'border' forbliver
-				}
-				saveMetadata(data.media_id, rowDiv);
-			});
-		});
-
-		// 2. KOMMENTAR
-		const commentInput = rowDiv.querySelector('.media-comment-input');
-		commentInput.addEventListener('change', () =>
-			saveMetadata(data.media_id, rowDiv),
-		);
-
-		// 3. MAIN CHECKBOX LOGIK
-		const mainInput = rowDiv.querySelector('.media-main-input');
-		mainInput.addEventListener('change', function () {
-			if (this.checked) {
-				// Uncheck visuelt alle andre checkboxes i samme container (samme toy/item)
-				const allCheckboxes =
-					container.querySelectorAll('.media-main-input');
-				allCheckboxes.forEach((cb) => {
-					if (cb !== this) cb.checked = false;
-				});
-				saveMetadata(data.media_id, rowDiv);
-			}
-		});
+			.join('');
 	};
 
 	const saveMetadata = (mediaId, rowElement) => {
 		const commentInput = rowElement.querySelector('.media-comment-input');
 		const mainInput = rowElement.querySelector('.media-main-input');
 		const indicator = rowElement.querySelector('.save-indicator');
-
-		// Hent aktive tags (dem med bg-dark)
 		const activePills = rowElement.querySelectorAll('.tag-pill.bg-dark');
 		const selectedTags = Array.from(activePills).map(
 			(pill) => pill.dataset.id,
@@ -411,7 +273,6 @@ App.initMediaUploads = function () {
 		formData.append('media_id', mediaId);
 		formData.append('user_comment', commentInput.value);
 		formData.append('is_main', mainInput.checked ? 1 : 0);
-
 		selectedTags.forEach((tag) => formData.append('tags[]', tag));
 
 		fetch(
@@ -430,4 +291,185 @@ App.initMediaUploads = function () {
 			})
 			.catch((err) => console.error('Save failed', err));
 	};
+
+	const createMediaRow = (container, data) => {
+		const rowDiv = document.createElement('div');
+		rowDiv.className = 'media-preview-row fade-in-row';
+
+		const isMainChecked = data.is_main == 1 ? 'checked' : '';
+
+		rowDiv.innerHTML = `
+            <div class="media-img-container">
+                <div class="media-img-frame">
+                    <img src="${data.file_path}" alt="Toy Photo">
+                </div>
+                
+                <div class="form-check form-check-sm user-select-none mt-2">
+                    <input class="form-check-input media-main-input" type="radio" 
+                           name="main_image_${data.media_id}" id="main_${data.media_id}" ${isMainChecked}>
+                    <label class="form-check-label small text-muted" for="main_${data.media_id}" style="cursor: pointer;">Main Image</label>
+                </div>
+
+                <button type="button" 
+                        class="btn btn-sm btn-outline-secondary px-2 delete-photo-btn" 
+                        onclick="App.deleteMedia(${data.media_id}, this)">
+                    <i class="far fa-trash-alt me-1"></i> Delete
+                </button>
+            </div>
+
+            <div class="flex-grow-1 d-flex flex-column">
+                <span class="badge bg-success opacity-0 save-indicator">
+                    <i class="fas fa-check me-1"></i>Saved
+                </span>
+
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label small text-muted mb-2">Tags</label>
+                        <div class="d-flex flex-wrap gap-2 tag-container">
+                            ${buildTagPills(data.tags)}
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label small text-muted mb-2">Comments</label>
+                        <textarea class="form-control media-comment-input" rows="2" 
+                                  placeholder="Describe photo...">${data.user_comment || ''}</textarea>
+                    </div>
+                </div>
+            </div>
+        `;
+
+		container.appendChild(rowDiv);
+
+		// Listeners for the new row
+		rowDiv.querySelectorAll('.tag-pill').forEach((pill) => {
+			pill.addEventListener('click', function () {
+				if (this.classList.contains('bg-dark')) {
+					this.classList.replace('bg-dark', 'bg-light');
+					this.classList.replace('text-white', 'text-dark');
+				} else {
+					this.classList.replace('bg-light', 'bg-dark');
+					this.classList.replace('text-dark', 'text-white');
+				}
+				saveMetadata(data.media_id, rowDiv);
+			});
+		});
+
+		rowDiv
+			.querySelector('.media-comment-input')
+			.addEventListener('change', () => saveMetadata(data.media_id, rowDiv));
+
+		rowDiv
+			.querySelector('.media-main-input')
+			.addEventListener('change', function () {
+				if (this.checked) {
+					container.querySelectorAll('.media-main-input').forEach((cb) => {
+						if (cb !== this) cb.checked = false;
+					});
+					saveMetadata(data.media_id, rowDiv);
+				}
+			});
+	};
+
+	// 2. INITIALIZE
+	if (containerEl && containerEl.dataset.tags) {
+		try {
+			window.availableMediaTags = JSON.parse(containerEl.dataset.tags);
+		} catch (e) {
+			console.error('Failed to parse tags', e);
+		}
+	}
+
+	if (containerEl && containerEl.dataset.existingMedia) {
+		try {
+			const mediaData = JSON.parse(containerEl.dataset.existingMedia);
+			if (mediaData.parent && mediaData.parent.length > 0) {
+				const pInput = containerEl.querySelector(
+					'.upload-input[data-context="collection_parent"]',
+				);
+				const pContainer = document.getElementById(
+					`preview-parent-${pInput.dataset.id}`,
+				);
+				if (pContainer)
+					mediaData.parent.forEach((img) =>
+						createMediaRow(pContainer, img),
+					);
+			}
+			if (mediaData.items) {
+				mediaData.items.forEach((item) => {
+					const cContainer = document.getElementById(
+						`preview-child-${item.id}`,
+					);
+					if (cContainer && item.images)
+						item.images.forEach((img) => createMediaRow(cContainer, img));
+				});
+			}
+		} catch (e) {
+			console.error('Failed to parse existing media', e);
+		}
+	}
+
+	document.querySelectorAll('.upload-input').forEach((input) => {
+		input.addEventListener('change', function () {
+			if (this.files)
+				Array.from(this.files).forEach((file) =>
+					handleUpload(file, this.dataset.context, this.dataset.id, this),
+				);
+		});
+	});
+
+	const handleUpload = (file, context, id, inputElement) => {
+		const formData = new FormData();
+		formData.append('file', file);
+		formData.append('target_context', context);
+		formData.append('target_id', id);
+
+		const labelBtn = inputElement.parentElement;
+		const icon = labelBtn.querySelector('i');
+		if (icon) icon.className = 'fas fa-spinner fa-spin me-1';
+		labelBtn.classList.add('disabled');
+
+		fetch(`${App.baseUrl}?module=Media&controller=Media&action=upload`, {
+			method: 'POST',
+			body: formData,
+		})
+			.then((res) => res.json())
+			.then((data) => {
+				if (data.success) {
+					const viewType =
+						context === 'collection_parent' ? 'parent' : 'child';
+					const container = document.getElementById(
+						`preview-${viewType}-${id}`,
+					);
+					if (container) createMediaRow(container, data);
+				}
+			})
+			.finally(() => {
+				if (icon) icon.className = 'fas fa-plus me-1';
+				labelBtn.classList.remove('disabled');
+				inputElement.value = '';
+			});
+	};
+};
+
+App.deleteMedia = function (mediaId, btnElement) {
+	if (!confirm('Are you sure you want to delete this photo?')) return;
+
+	fetch(
+		`${App.baseUrl}?module=Media&controller=Media&action=delete&id=${mediaId}`,
+		{
+			method: 'POST',
+		},
+	)
+		.then((res) => res.json())
+		.then((data) => {
+			if (data.success) {
+				// Fjern hele rækken med en lille animation
+				const row = btnElement.closest('.media-preview-row');
+				row.style.opacity = '0';
+				setTimeout(() => row.remove(), 300);
+			} else {
+				alert('Error deleting photo: ' + (data.error || 'Unknown error'));
+			}
+		})
+		.catch((err) => console.error('Delete request failed', err));
 };

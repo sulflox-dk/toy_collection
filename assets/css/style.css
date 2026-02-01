@@ -1,14 +1,9 @@
-/* assets/css/style.css */
+/* =========================================
+   1. GLOBAL TYPOGRAPHY & BASE STYLES
+   ========================================= */
 
 /* Sæt grundstørrelsen ned til 14px (0.875rem) */
 body {
-	font-size: 0.875rem;
-}
-
-/* Gør tabellerne lidt mere kompakte */
-.table td,
-.table th {
-	padding: 0.5rem 0.5rem; /* Mindre luft i cellerne */
 	font-size: 0.875rem;
 }
 
@@ -34,6 +29,17 @@ h5,
 	font-size: 1.1rem;
 }
 
+/* =========================================
+   2. COMPONENTS (Tables, Buttons, Forms)
+   ========================================= */
+
+/* Gør tabellerne lidt mere kompakte */
+.table td,
+.table th {
+	padding: 0.5rem 0.5rem; /* Mindre luft i cellerne */
+	font-size: 0.875rem;
+}
+
 /* Gør badges lidt mindre og mere diskrete */
 .badge {
 	font-weight: 500;
@@ -45,49 +51,77 @@ h5,
 	font-size: 0.875rem;
 }
 
-/* assets/css/style.css */
-
 /* Gør alle inputs og selects mindre (14px) */
 .form-control,
 .form-select {
 	font-size: 0.875rem;
 }
 
-/* Sørg for at labels også følger med hvis de ikke allerede gør */
+/* Sørg for at labels også følger med */
 .form-label {
 	font-size: 0.875rem;
 }
 
-/* 1. DIALOG (Rammen) */
+.border-dashed {
+	border-style: dashed !important;
+	border-width: 2px !important;
+}
+
+/* =========================================
+   3. MODAL LAYOUT (The "Fixed & Centered" Fix)
+   ========================================= */
+
+/* 3.0 MAIN WRAPPER (Backdrop Fix) */
+/* Vi tilføjer .show så reglen KUN gælder når modalen er aktiv */
+#appModal.show {
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden !important;
+}
+
+/* Vi skal også sikre os at selve modal-beholderen ikke spærrer 
+   for klik når den er skjult */
+#appModal:not(.show) {
+	pointer-events: none;
+}
+
+/* 3.1 DIALOG (Rammen) */
 #appModal .modal-dialog {
 	max-width: 800px;
 	width: 90%;
-	height: 85vh; /* Fast højde */
-	margin: 7.5vh auto;
+	height: 90vh;
+	margin: 0;
 	display: flex;
 	align-items: stretch;
+	/* Sikrer at vi kan klikke på indholdet */
+	pointer-events: all;
 }
 
-/* 2. CONTENT (Den hvide boks) */
+/* 3.2 CONTENT (Den hvide boks) */
 #appModal .modal-content {
 	display: flex;
 	flex-direction: column;
+
+	/* Fyld rammen helt ud */
 	height: 100%;
 	max-height: 100%;
+
 	overflow: hidden;
 	border: none;
 	border-radius: 12px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-/* 3. HEADER (Ligger øverst) */
+/* 3.3 HEADER */
 #appModal .modal-header {
 	flex-shrink: 0; /* Må ikke skrumpe */
 	background: #fff;
 	z-index: 2;
 }
 
-/* 4. FORM (VIGTIGT! Det manglende led) */
-/* Dette gør at formen fylder al pladsen under headeren */
+/* 3.4 FORM WRAPPER (VIGTIGT! Din styling havde denne) */
+/* Dette sikrer at scroll virker selvom indholdet er i et <form> tag */
 #appModal .modal-content > form {
 	display: flex;
 	flex-direction: column;
@@ -96,19 +130,23 @@ h5,
 	overflow: hidden; /* Ingen scrollbar på selve formen */
 }
 
-/* 5. BODY (Det der scroller INDE i formen) */
+/* 3.5 BODY (Det der scroller INDE i formen) */
 #appModal .modal-body {
-	flex-grow: 1; /* Skub footer ned */
-	overflow-y: auto; /* Scroll her */
+	flex-grow: 1; /* Tag al plads */
+	overflow-y: auto; /* Scroll her hvis indholdet er for stort */
 	padding: 2rem;
 }
 
-/* 6. FOOTER (Ligger nederst i formen) */
+/* 3.6 FOOTER */
 #appModal .modal-footer {
 	flex-shrink: 0;
-	background: #f8f9fa; /* Lys grå baggrund for at adskille */
+	background: #f8f9fa; /* Lys grå baggrund */
 	border-top: 1px solid #dee2e6;
 }
+
+/* =========================================
+   4. UNIVERSE SELECTION CARDS
+   ========================================= */
 
 /* Universe Selection Button (Card Style) */
 .btn-universe-select {
@@ -130,8 +168,8 @@ h5,
 .btn-universe-select:hover {
 	border-color: #212529; /* Dark Border */
 	transform: translateY(-5px); /* Lift up slightly */
-	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Shadow on the BUTTON, not the image */
-	background-color: #fff; /* Keep background white so black text is visible */
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+	background-color: #fff;
 }
 
 /* Image Styling */
@@ -139,10 +177,211 @@ h5,
 	max-width: 100%;
 	max-height: 100%;
 	object-fit: contain;
-	/* REMOVED: filter: drop-shadow(...) - This was causing the inner frame issue */
 }
 
-.border-dashed {
-	border-style: dashed !important;
-	border-width: 2px !important;
+/* =========================================
+   5. MEDIA UPLOAD & PREVIEW STYLES
+   ========================================= */
+
+/* Selve rækken med billede og info */
+.media-preview-row {
+	display: flex;
+	gap: 1.5rem;
+	align-items: stretch;
+	background-color: #fff;
+	padding: 1rem;
+	border: 1px solid #dee2e6;
+	border-radius: 0.5rem;
+	margin-bottom: 1rem;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Venstre kolonne med billede */
+.media-img-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+	width: 120px;
+	flex-shrink: 0;
+}
+
+/* Selve rammen omkring billedet */
+.media-img-frame {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #f8f9fa;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	overflow: hidden;
+	width: 120px;
+	min-height: 100px;
+	max-height: 200px; /* Din opdaterede højde */
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.media-img-frame img {
+	max-width: 100%;
+	max-height: 200px;
+	object-fit: contain;
+	display: block;
+}
+
+/* Tag-pillerne */
+.tag-pill {
+	cursor: pointer;
+	font-weight: normal !important;
+	padding: 0.5rem 1rem !important;
+	user-select: none;
+	transition: all 0.2s ease;
+}
+
+/* Save indicator animation */
+.save-indicator {
+	position: absolute;
+	top: 0;
+	right: 0;
+	font-weight: normal;
+	font-size: 0.65rem;
+	transition: opacity 0.3s ease;
+	z-index: 5;
+}
+
+/* =========================================
+   6. FORM & MODAL CONTENT STYLES
+   ========================================= */
+
+/* Modal kropsfarve og sektions-overskrifter */
+.modal-body-custom {
+	background-color: #f8f9fa;
+}
+
+.section-label {
+	text-transform: uppercase;
+	color: #6c757d; /* text-muted */
+	font-weight: bold;
+	margin-bottom: 1rem;
+	font-size: 0.75rem;
+	letter-spacing: 1px;
+}
+
+/* Kort brugt til sektioner i formularer */
+.form-section-card {
+	background-color: #fff;
+	border: none;
+	border-radius: 0.5rem;
+	box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+	margin-bottom: 1.5rem;
+}
+
+/* Forbedret univers-vælger layout */
+.universe-grid-container {
+	max-width: 900px;
+}
+
+.universe-title {
+	text-align: center;
+	margin-bottom: 3rem;
+	font-weight: 300; /* fw-light */
+	text-transform: uppercase;
+	letter-spacing: 2px;
+}
+
+/* Badge til item count */
+.item-count-badge {
+	background-color: #6c757d;
+	font-size: 0.75rem;
+}
+
+/* Header styling for child items */
+.child-item-header {
+	background-color: #f8f9fa;
+	font-weight: bold;
+	font-size: 0.875rem;
+	text-transform: uppercase;
+}
+
+/* =========================================
+   7. DASHBOARD STYLES
+   ========================================= */
+
+/* Overskrifts-sektion */
+.dashboard-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1.5rem;
+}
+
+/* Univers/Katalog kort */
+.universe-card {
+	border: none;
+	border-radius: 0.5rem;
+	box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+	margin-bottom: 3rem;
+	overflow: hidden;
+}
+
+.universe-card-header {
+	background-color: #212529; /* bg-dark */
+	color: #fff;
+	padding: 0.75rem 1.25rem;
+}
+
+/* Tabel kolonne-bredder og alignment */
+.col-man {
+	width: 20%;
+	vertical-align: bottom;
+}
+.col-line {
+	width: 30%;
+	vertical-align: bottom;
+}
+.col-stat {
+	width: 10%;
+}
+.col-action {
+	vertical-align: middle;
+}
+
+/* Nyligt tilføjede sektion */
+.recent-card {
+	border: none;
+	border-radius: 0.5rem;
+	box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+	margin-bottom: 2rem;
+}
+
+.recent-card-header {
+	background-color: #fff;
+	padding: 1rem 1.25rem;
+	border-bottom: 1px solid #dee2e6;
+}
+
+/* Knap-grupper i tabeller */
+.action-btn-group {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.btn-action-last {
+	border-left: 0 !important;
+}
+
+/* Ny styling til slet-knappen placeret i bunden af venstre kolonne */
+.delete-photo-btn {
+	margin-top: auto !important; /* Skubber knappen helt til bunden */
+	font-size: 0.75rem;
+	color: #6c757d;
+}
+
+.delete-photo-btn:hover {
+	color: #dc3545;
+	background-color: #fff1f2;
+	border-color: #dc3545;
+}
+
+.media-preview-row .flex-grow-1 {
+	position: relative;
 }

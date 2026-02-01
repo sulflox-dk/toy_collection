@@ -105,4 +105,41 @@ class MediaModel {
     public function getMediaTags() {
         return $this->db->query("SELECT * FROM media_tags ORDER BY tag_name ASC")->fetchAll();
     }
+
+    /**
+     * Henter alle billeder for en bestemt kontekst (Parent eller Child)
+     * Returnerer format der passer direkte til JS createMediaRow
+     */
+    public function getImages(string $context, int $targetId) {
+        $tableMap = ($context === 'collection_parent') 
+            ? 'collection_toy_media_map' 
+            : 'collection_toy_item_media_map';
+        
+        $colId = ($context === 'collection_parent') 
+            ? 'collection_toy_id' 
+            : 'collection_toy_item_id';
+
+        // 1. Hent billeder og map-info
+        $sql = "SELECT mf.id as media_id, mf.file_path, mf.user_comment, mmap.is_main
+                FROM media_files mf
+                JOIN $tableMap mmap ON mf.id = mmap.media_file_id
+                WHERE mmap.$colId = :tid
+                ORDER BY mmap.sort_order ASC, mf.id ASC";
+        
+        $images = $this->db->query($sql, ['tid' => $targetId])->fetchAll();
+
+        // 2. Hent tags for hvert billede
+        foreach ($images as &$img) {
+            $tagSql = "SELECT t.id, t.tag_name 
+                       FROM media_tags t
+                       JOIN media_file_tags_map map ON t.id = map.tag_id
+                       WHERE map.media_file_id = :mid";
+            $img['tags'] = $this->db->query($tagSql, ['mid' => $img['media_id']])->fetchAll();
+            
+            // Konverter tags til simpelt array af ID'er for nemmere JS håndtering, hvis nødvendigt
+            // Men createMediaRow kigger efter class 'bg-dark' baseret på ID, så vi sender bare objektet.
+        }
+
+        return $images;
+    }
 }

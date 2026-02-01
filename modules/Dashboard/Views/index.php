@@ -1,15 +1,13 @@
-<div class="row mb-4">
-    <div class="col-md-12 d-flex justify-content-between align-items-center">
-        <h1 class="h3 text-dark">Overview</h1>
-        <button onclick="App.openModal('Collection', 'Toy', 'add')" class="btn btn-dark btn-sm">
-            <i class="fas fa-plus"></i> Add New
-        </button>
-    </div>
+<div class="dashboard-header">
+    <h1 class="h3 text-dark">Overview</h1>
+    <button onclick="App.openModal('Collection', 'Toy', 'add')" class="btn btn-dark btn-sm">
+        <i class="fas fa-plus me-1"></i> Add New
+    </button>
 </div>
 
 <?php foreach ($stats as $universeName => $manufacturers): ?>
-    <div class="card shadow-sm mb-5 border-0">
-        <div class="card-header bg-dark text-white">
+    <div class="card universe-card">
+        <div class="card-header universe-card-header">
             <h5 class="mb-0"><i class="fa-solid fa-globe me-2"></i> <?= htmlspecialchars($universeName) ?></h5>
         </div>
         <div class="card-body p-0">
@@ -17,20 +15,20 @@
                 <table class="table table-hover table-striped mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 20%; vertical-align: bottom;" rowspan="2">Manufacturer</th>
-                            <th style="width: 30%; vertical-align: bottom;" rowspan="2">Line</th>
+                            <th class="col-man" rowspan="2">Manufacturer</th>
+                            <th class="col-line" rowspan="2">Line</th>
                             
                             <th colspan="2" class="text-center border-start">Figures</th>
                             <th colspan="2" class="text-center border-start">Others</th>
                             
-                            <th class="text-center border-start" style="vertical-align: middle;" rowspan="2">&nbsp;</th>
+                            <th class="text-center border-start col-action" rowspan="2">&nbsp;</th>
                         </tr>
                         <tr>
-                            <th class="text-center border-start bg-light" style="width: 10%;"><small class="text-muted">Owned</small></th>
-                            <th class="text-center bg-light" style="width: 10%;"><small class="text-muted">Pending</small></th>
+                            <th class="text-center border-start bg-light col-stat"><small class="text-muted">Owned</small></th>
+                            <th class="text-center bg-light col-stat"><small class="text-muted">Pending</small></th>
                             
-                            <th class="text-center border-start bg-light" style="width: 10%;"><small class="text-muted">Owned</small></th>
-                            <th class="text-center bg-light" style="width: 10%;"><small class="text-muted">Pending</small></th>
+                            <th class="text-center border-start bg-light col-stat"><small class="text-muted">Owned</small></th>
+                            <th class="text-center bg-light col-stat"><small class="text-muted">Pending</small></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,8 +91,8 @@
     </div>
 <?php endforeach; ?>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white py-3">
+<div class="card recent-card">
+    <div class="card-header recent-card-header">
         <h5 class="mb-0 text-gray-800">
             <i class="fas fa-clock me-2"></i>Recently Added
         </h5>
@@ -114,17 +112,21 @@
                     <?php if (!empty($recentToys)): ?>
                         <?php foreach ($recentToys as $toy): ?>
                             <tr>
-                                <td class="ps-4 fw-bold">
+                                <td class="ps-4">
                                     <?= htmlspecialchars($toy['toy_name']) ?>
                                 </td>
                                 <td class="text-muted">
                                     <?= htmlspecialchars($toy['manufacturer_name']) ?> / <?= htmlspecialchars($toy['line_name']) ?>
                                 </td>
                                 <td class="text-muted small">
-                                    <?= date('d. M Y', strtotime($toy['created_at'] ?? 'now')) ?>
+                                    <?php if (!empty($toy['purchase_date'])): ?>
+                                        <?= date('d. M Y', strtotime($toy['purchase_date'])) ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <div class="btn-group">
+                                    <div class="btn-group action-btn-group">
                                         <button type="button" class="btn btn-sm btn-outline-secondary edit-toy-btn" 
                                                 data-id="<?= $toy['id'] ?>" 
                                                 title="Edit Data">
@@ -137,7 +139,7 @@
                                             <i class="fas fa-camera"></i>
                                         </button>
                                         
-                                        <a href="#" class="btn btn-sm btn-outline-secondary border-start-0">
+                                        <a href="#" class="btn btn-sm btn-outline-secondary btn-action-last">
                                             <i class="fas fa-chevron-right"></i>
                                         </a>
                                     </div>

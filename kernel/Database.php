@@ -72,4 +72,38 @@ class Database {
         return $this->connection->lastInsertId();
     }
 
+    /**
+     * Henter mulige værdier fra en ENUM kolonne.
+     * Robust version der henter alle kolonner og filtrerer i PHP.
+     */
+    public function getEnumValues($table, $column) {
+        $sql = "SHOW COLUMNS FROM `" . $table . "`";
+        
+        try {
+            $stmt = $this->connection->prepare($sql);
+            $stmt->execute();
+            $columns = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
+            foreach ($columns as $col) {
+                // Vi sikrer os mod forskel på store/små bogstaver (Field vs field)
+                $col = array_change_key_case($col, CASE_LOWER);
+                
+                // Tjek om det er den rigtige kolonne
+                if ($col['field'] === $column) {
+                    // Vi har fundet kolonnen, nu tjekker vi om det er en ENUM
+                    preg_match("/^enum\(\'(.*)\'\)$/", $col['type'], $matches);
+                    if (isset($matches[1])) {
+                        return explode("','", $matches[1]);
+                    }
+                    return []; // Kolonnen fandtes, men var ikke en ENUM
+                }
+            }
+        } catch (\Exception $e) {
+            // Hvis tabellen slet ikke findes, returnerer vi bare tomme valgmuligheder
+            return [];
+        }
+
+        return [];
+    }
+
 }

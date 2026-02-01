@@ -2,6 +2,7 @@
 namespace CollectionApp\Modules\Collection\Controllers;
 
 use CollectionApp\Kernel\Controller;
+use CollectionApp\Kernel\Database; // NY: For at kunne hente Enums
 use CollectionApp\Modules\Collection\Models\ToyModel;
 use CollectionApp\Modules\Catalog\Models\CatalogModel;
 use CollectionApp\Modules\Media\Models\MediaModel;
@@ -20,24 +21,24 @@ class ToyController extends Controller {
     }
 
     public function add() {
-        // Bruger nu CatalogModel
+        // Henter universer fra CatalogModel
         $data = ['universes' => $this->catalogModel->getAllUniverses()];
         $this->view->renderPartial('select_universe_modal', $data, 'Collection');
     }
 
     public function form() {
         $preSelectedUniverseId = isset($_GET['universe_id']) ? (int)$_GET['universe_id'] : null;
+        $db = Database::getInstance(); // Hent DB instans til enums
 
         $data = [
-            // Her henter vi alle lister fra CatalogModel
             'universes'  => $this->catalogModel->getAllUniverses(),
             'sources'    => $this->catalogModel->getSources(),
             'storages'   => $this->catalogModel->getStorageUnits(),
             
-            // Disse ligger stadig i ToyModel (da de er metadata på selve items)
-            'statuses'   => $this->toyModel->getEnumValues('collection_toys', 'acquisition_status'),
-            'conditions' => $this->toyModel->getEnumValues('collection_toys', 'condition'),
-            'completeness' => $this->toyModel->getEnumValues('collection_toys', 'completeness_grade'),
+            // NYT: Henter enums direkte fra Database-hjælperen
+            'statuses'   => $db->getEnumValues('collection_toys', 'acquisition_status'),
+            'conditions' => $db->getEnumValues('collection_toys', 'condition'),
+            'completeness' => $db->getEnumValues('collection_toys', 'completeness_grade'),
             
             'selected_universe' => $preSelectedUniverseId
         ];
@@ -45,8 +46,7 @@ class ToyController extends Controller {
         $this->view->renderPartial('add_toy_modal', $data, 'Collection');
     }
 
-    public function store() {
-        // (Uændret logik - bruger stadig ToyModel til at gemme)
+    public function create() {
         if (empty($_POST['manufacturer_id']) || empty($_POST['line_id']) || empty($_POST['master_toy_id'])) {
             echo '<div class="alert alert-danger m-3">Error: Please select Universe, Manufacturer, Line, and Toy.</div>';
             exit;
@@ -93,12 +93,14 @@ class ToyController extends Controller {
         }
 
         $_GET['id'] = $parentId;
+        $_GET['new_entry'] = true;
         $this->media_step();
         exit;
     }
 
     public function edit() {
         $id = (int)($_GET['id'] ?? 0);
+        $db = Database::getInstance();
         
         $toy = $this->toyModel->getToyById($id);
         if (!$toy) {
@@ -106,15 +108,15 @@ class ToyController extends Controller {
              exit;
         }
 
+        // NYT: Bruger CatalogModel og det nye navn getMasterToyItems
         $availableParts = $this->catalogModel->getMasterToyItems($toy['master_toy_id']);
 
         $data = [
             'mode' => 'edit',
             'toy' => $toy,
             'childItems' => $this->toyModel->getChildItems($id),
-            'availableParts' => $availableParts, // NYT: Send listen af mulige dele med
+            'availableParts' => $availableParts, 
             
-            // ... (resten af dine dropdowns er uændret)
             'universes'     => $this->catalogModel->getAllUniverses(),
             'manufacturers' => $this->catalogModel->getManufacturersByUniverse($toy['universe_id']),
             'lines'         => $this->catalogModel->getLinesByManufacturer($toy['manufacturer_id']),
@@ -123,9 +125,11 @@ class ToyController extends Controller {
             'sources'       => $this->catalogModel->getSources(),
             'storages'      => $this->catalogModel->getStorageUnits(),
             
-            'statuses'      => $this->toyModel->getEnumValues('collection_toys', 'acquisition_status'),
-            'conditions'    => $this->toyModel->getEnumValues('collection_toys', 'condition'),
-            'completeness'  => $this->toyModel->getEnumValues('collection_toys', 'completeness_grade'),
+            // Henter enums direkte fra Database
+            'statuses'      => $db->getEnumValues('collection_toys', 'acquisition_status'),
+            'conditions'    => $db->getEnumValues('collection_toys', 'condition'),
+            'completeness'  => $db->getEnumValues('collection_toys', 'completeness_grade'),
+            
             'selected_universe' => $toy['universe_id']
         ];
 
@@ -133,10 +137,9 @@ class ToyController extends Controller {
     }
 
     public function update() {
-        // (Uændret logik - bruger stadig ToyModel til at gemme)
         $id = (int)($_POST['id'] ?? 0);
         if (!$id) {
-            http_response_code(400); // Fortæl browseren det er en fejl
+            http_response_code(400);
             echo "Error: Missing ID";
             exit;
         }
@@ -188,16 +191,48 @@ class ToyController extends Controller {
     public function media_step() {
         $toyId = (int)($_GET['id'] ?? 0);
         
-        $toy = $this->toyModel->getMediaStepInfo($toyId);
+        // 1. Hent Parent
+        $toy = $this->db->query("
+            SELECT ct.id, mt.name as toy_name 
+            FROM collection_toys ct
+            JOIN master_toys mt ON ct.master_toy_id = mt.id
+            WHERE ct.id = :id", 
+            ['id' => $toyId]
+        )->fetch();
+
         if (!$toy) {
-            echo '<div class="alert alert-danger m-3">Error: Toy not found. Cannot load media upload.</div>';
-            exit;
+             echo '<div class="alert alert-danger m-3">Error: Toy not found. Cannot load media upload.</div>';
+             exit;
         }
 
+        // 2. Hent Items
+        $items = $this->db->query("
+            SELECT cti.id, mti.variant_description, s.name as subject_name, s.type
+            FROM collection_toy_items cti
+            JOIN master_toy_items mti ON cti.master_toy_item_id = mti.id
+            JOIN subjects s ON mti.subject_id = s.id
+            WHERE cti.collection_toy_id = :pid", 
+            ['pid' => $toyId]
+        )->fetchAll();
+
+        // 3. Hent TAGS
+        $tags = $this->mediaModel->getMediaTags();
+
+        // 4. Hent eksisterende billeder
+        $toy['images'] = $this->mediaModel->getImages('collection_parent', $toyId);
+        foreach ($items as &$item) {
+            $item['images'] = $this->mediaModel->getImages('collection_child', $item['id']);
+        }
+
+        // 5. Bestem MODE
+        // Hvis 'new_entry' er sat i URL (fra store()), så er vi i 'create' mode. Ellers 'edit'.
+        $mode = isset($_GET['new_entry']) ? 'create' : 'edit';
+
         $data = [
+            'mode' => $mode,  // <--- Vi sender nu mode med
             'toy' => $toy,
-            'items' => $this->toyModel->getItemsForMedia($toyId),
-            'available_tags' => $this->mediaModel->getMediaTags()
+            'items' => $items,
+            'available_tags' => $tags
         ];
 
         $this->view->renderPartial('add_media_modal', $data, 'Collection');

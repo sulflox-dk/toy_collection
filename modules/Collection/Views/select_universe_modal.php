@@ -6,9 +6,9 @@
 
 <div class="modal-body d-flex flex-column align-items-center justify-content-top h-100">
     
-    <h3 class="text-center mb-5 fw-light text-uppercase ls-2">Choose Universe</h3>
+    <h3 class="universe-title">Choose Universe</h3>
 
-    <div class="container" style="max-width: 900px;">
+    <div class="container universe-grid-container">
         <div class="row justify-content-center g-4"> 
             
             <?php foreach($universes as $u): ?>
@@ -25,7 +25,7 @@
                         <img src="<?= $imgUrl ?>" alt="<?= htmlspecialchars($u['name']) ?>" 
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                         
-                        <span style="display:none; font-weight:bold; color: #000;"><?= htmlspecialchars($u['name']) ?></span>
+                        <span class="fw-bold text-dark d-none"><?= htmlspecialchars($u['name']) ?></span>
                     
                     </button>
                 </div>
