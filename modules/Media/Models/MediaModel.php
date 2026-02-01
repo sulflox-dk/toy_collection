@@ -142,4 +142,30 @@ class MediaModel {
 
         return $images;
     }
+
+    /**
+     * Sletter en medie-fil både fra databasen og fra filsystemet
+     */
+    public function delete(int $mediaId) {
+        // 1. Hent stien for at kunne slette filen fysisk
+        $media = $this->db->query("SELECT file_path FROM media_files WHERE id = :id", ['id' => $mediaId])->fetch();
+        if (!$media) return false;
+
+        // 2. Slet tags tilknyttet billedet
+        $this->db->query("DELETE FROM media_file_tags_map WHERE media_file_id = :id", ['id' => $mediaId]);
+
+        // 3. Slet selve rækken i media_files
+        $this->db->query("DELETE FROM media_files WHERE id = :id", ['id' => $mediaId]);
+
+        // 4. Slet filen fra disken
+        $baseUrl = \CollectionApp\Kernel\Config::get('base_url');
+        $uploadPath = \CollectionApp\Kernel\Config::get('upload_path');
+        $relativeFile = str_replace($baseUrl . 'assets/uploads/', '', $media['file_path']);
+        $fullSystemPath = ROOT_PATH . '/' . $uploadPath . $relativeFile;
+
+        if (file_exists($fullSystemPath)) {
+            unlink($fullSystemPath);
+        }
+        return true;
+    }
 }

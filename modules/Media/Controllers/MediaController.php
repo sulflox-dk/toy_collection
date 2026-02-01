@@ -119,4 +119,24 @@ class MediaController extends Controller {
         $errorMessage = isset($errorMap[$errorCode]) ? $errorMap[$errorCode] : 'Unknown upload error';
         echo json_encode(['success' => false, 'error' => $errorMessage]);
     }
+
+    public function delete() {
+        header('Content-Type: application/json');
+        
+        $mediaId = (int)($_GET['id'] ?? 0);
+        
+        if (!$mediaId) {
+            echo json_encode(['success' => false, 'error' => 'Missing ID']);
+            exit;
+        }
+
+        try {
+            // Kald modellen for at udføre sletningen
+            $success = $this->mediaModel->delete($mediaId);
+            echo json_encode(['success' => $success]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
 }

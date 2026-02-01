@@ -173,15 +173,22 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
         <div id="childItemsContainer">
             <?php if($isEdit && !empty($childItems)): ?>
                 <?php foreach($childItems as $idx => $item): ?>
-                    <div class="card mb-3 border border-secondary shadow-sm child-item-row">
+                    <div class="card mb-3 shadow-sm child-item-row">
                         <input type="hidden" name="items[<?= $idx ?>][id]" value="<?= $item['id'] ?>">
                         
-                        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2">
-                            <span class="text-uppercase">
+                        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2 text-muted fw-normal">
+                            <span>
                                 <i class="fas fa-puzzle-piece me-2"></i>
-                                <?= htmlspecialchars($item['part_name'] ?? 'Item') ?> 
-                                <span class="text-muted fw-normal lowercase-text">(<?= $item['part_type'] ?? 'Part' ?>)</span>
+                                <span class="text-uppercase text-secondary"><?= htmlspecialchars($item['part_name'] ?? 'Item') ?></span>
+                                <span class="text-body-tertiary fw-normal">(<?= $item['part_type'] ?? 'Part' ?>)</span>
                             </span>
+                            
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-secondary px-2 delete-btn-general" 
+                                    onclick="App.deleteToyItem(<?= $item['id'] ?>, this)" 
+                                    title="Remove Item from Collection">
+                                <i class="far fa-trash-alt me-1"></i> Delete
+                            </button>
                         </div>
 
                         <div class="card-body p-3 bg-white">
@@ -312,7 +319,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 </form>
 
 <template id="childRowTemplate">
-    <div class="card mb-4 border border-secondary shadow-sm child-item-row">
+    <div class="card mb-4 shadow-sm child-item-row">
         
         <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2">
             <span class="text-uppercase"><i class="fas fa-puzzle-piece me-2"></i>Item #<span class="row-number">1</span></span>

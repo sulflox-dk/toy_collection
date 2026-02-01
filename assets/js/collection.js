@@ -310,11 +310,11 @@ App.initMediaUploads = function () {
                     <label class="form-check-label small text-muted" for="main_${data.media_id}" style="cursor: pointer;">Main Image</label>
                 </div>
 
-                <button type="button" 
-                        class="btn btn-sm btn-outline-secondary px-2 delete-photo-btn" 
-                        onclick="App.deleteMedia(${data.media_id}, this)">
-                    <i class="far fa-trash-alt me-1"></i> Delete
-                </button>
+				<button type="button" 
+						class="btn btn-sm btn-outline-secondary px-2 delete-btn-general delete-photo-btn" 
+						onclick="App.deleteMedia(${data.media_id}, this)">
+					<i class="far fa-trash-alt me-1"></i> Delete
+				</button>
             </div>
 
             <div class="flex-grow-1 d-flex flex-column">
@@ -455,10 +455,8 @@ App.deleteMedia = function (mediaId, btnElement) {
 	if (!confirm('Are you sure you want to delete this photo?')) return;
 
 	fetch(
-		`${App.baseUrl}?module=Media&controller=Media&action=delete&id=${mediaId}`,
-		{
-			method: 'POST',
-		},
+		`${App.baseUrl}?module=Collection&controller=Api&action=delete_media&id=${mediaId}`,
+		{ method: 'POST' },
 	)
 		.then((res) => res.json())
 		.then((data) => {
@@ -472,4 +470,41 @@ App.deleteMedia = function (mediaId, btnElement) {
 			}
 		})
 		.catch((err) => console.error('Delete request failed', err));
+};
+
+// I assets/js/collection.js
+App.deleteToyItem = function (itemId, btnElement) {
+	if (
+		!confirm(
+			'Are you sure you want to remove this item from your collection?',
+		)
+	)
+		return;
+
+	fetch(
+		`${App.baseUrl}?module=Collection&controller=Api&action=delete_item&id=${itemId}`,
+		{
+			method: 'POST',
+		},
+	)
+		.then((res) => res.json())
+		.then((data) => {
+			if (data.success) {
+				// Fjern kortet med en animation
+				const row = btnElement.closest('.child-item-row');
+				row.style.opacity = '0';
+				setTimeout(() => {
+					row.remove();
+					// Opdater badge tælleren hvis den findes
+					const badge = document.getElementById('itemCountBadge');
+					if (badge) {
+						const currentCount =
+							document.querySelectorAll('.child-item-row').length;
+						badge.textContent = `${currentCount} items`;
+					}
+				}, 300);
+			} else {
+				alert('Error: ' + (data.error || 'Unknown error'));
+			}
+		});
 };

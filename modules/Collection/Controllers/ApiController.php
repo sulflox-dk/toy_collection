@@ -3,15 +3,18 @@ namespace CollectionApp\Modules\Collection\Controllers;
 
 use CollectionApp\Kernel\Controller;
 use CollectionApp\Modules\Catalog\Models\CatalogModel;
+use CollectionApp\Modules\Collection\Models\ToyModel;
 
 class ApiController extends Controller {
 
     private $catalogModel;
+    private $toyModel;
 
     public function __construct() {
         parent::__construct();
         // Vi instansierer CatalogModel så vi kan hente data fra databasen
         $this->catalogModel = new CatalogModel();
+        $this->toyModel = new ToyModel();
     }
 
     /**
@@ -70,6 +73,43 @@ class ApiController extends Controller {
         
         header('Content-Type: application/json');
         echo json_encode($data);
+        exit;
+    }
+
+    public function delete_media() {
+        header('Content-Type: application/json');
+        $mediaId = (int)($_GET['id'] ?? 0);
+
+        if (!$mediaId) {
+            echo json_encode(['success' => false, 'error' => 'Missing ID']);
+            exit;
+        }
+
+        try {
+            $success = $this->toyModel->deleteMedia($mediaId);
+            echo json_encode(['success' => $success]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    // I modules/Collection/Controllers/ToyController.php
+    public function delete_item() {
+        header('Content-Type: application/json');
+        $itemId = (int)($_GET['id'] ?? 0);
+
+        if (!$itemId) {
+            echo json_encode(['success' => false, 'error' => 'Missing Item ID']);
+            exit;
+        }
+
+        try {
+            $success = $this->toyModel->deleteItem($itemId);
+            echo json_encode(['success' => $success]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
         exit;
     }
 }

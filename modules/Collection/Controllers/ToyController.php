@@ -241,4 +241,5 @@ class ToyController extends Controller {
     private function nullIfEmpty($val) {
         return ($val === '' || $val === 'Select...') ? null : $val;
     }
+
 }
