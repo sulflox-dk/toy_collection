@@ -214,6 +214,15 @@ App.initDependentDropdowns = function () {
 	}
 
 	// --- DROPDOWNS (Universe/Line/Etc) ---
+	// Hjælpefunktion til auto-valg
+	const autoSelectIfSingle = (element, data) => {
+		if (data.length === 1) {
+			element.value = data[0].id;
+			// Vigtigt: Fortæl systemet at værdien er ændret, så den næste dropdown loader
+			element.dispatchEvent(new Event('change'));
+		}
+	};
+
 	const loadManufacturers = (universeId) => {
 		if (!manufacturerSelect) return;
 		manufacturerSelect.innerHTML = '<option>Loading...</option>';
@@ -229,9 +238,11 @@ App.initDependentDropdowns = function () {
 			`${App.baseUrl}?module=Collection&controller=Api&action=get_manufacturers&universe_id=${universeId}`,
 		)
 			.then((res) => res.json())
-			.then((data) =>
-				populateSelect(manufacturerSelect, data, 'Select Manufacturer...'),
-			);
+			.then((data) => {
+				populateSelect(manufacturerSelect, data, 'Select Manufacturer...');
+				// NYT: Auto-vælg hvis der kun er én manufacturer
+				autoSelectIfSingle(manufacturerSelect, data);
+			});
 	};
 
 	const loadLines = (manId) => {
@@ -245,7 +256,11 @@ App.initDependentDropdowns = function () {
 			`${App.baseUrl}?module=Collection&controller=Api&action=get_lines&manufacturer_id=${manId}&universe_id=${uniId}`,
 		)
 			.then((res) => res.json())
-			.then((data) => populateSelect(lineSelect, data, 'Select Line...'));
+			.then((data) => {
+				populateSelect(lineSelect, data, 'Select Line...');
+				// NYT: Auto-vælg hvis der kun er én line
+				autoSelectIfSingle(lineSelect, data);
+			});
 	};
 
 	const loadToys = (lineId) => {
@@ -257,9 +272,11 @@ App.initDependentDropdowns = function () {
 			`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toys&line_id=${lineId}`,
 		)
 			.then((res) => res.json())
-			.then((data) =>
-				populateSelect(toySelect, data, 'Select Toy / Set...'),
-			);
+			.then((data) => {
+				populateSelect(toySelect, data, 'Select Toy / Set...');
+				// (Valgfrit) Vi kan også gøre det her, men ofte vil man gerne se listen af toys
+				// autoSelectIfSingle(toySelect, data); 
+			});
 	};
 
 	const loadParts = (toyId) => {
@@ -324,20 +341,38 @@ App.initDependentDropdowns = function () {
 			submitBtn.disabled = true;
 
 			fetch(form.action, { method: 'POST', body: formData })
-				.then((response) => response.text())
-				.then((html) => {
-					const modalContent = form.closest('.modal-content');
-					if (modalContent) {
-						modalContent.innerHTML = html;
-						if (typeof App.initMediaUploads === 'function')
-							App.initMediaUploads();
-					}
-				})
-				.catch((err) => {
-					alert('An error occurred while saving.');
-					submitBtn.innerHTML = originalBtnText;
-					submitBtn.disabled = false;
-				});
+                .then((response) => {
+                    // Tjek om serveren svarer med JSON (Update) eller HTML (Create)
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        return response.json().then(data => {
+                            if (data.success) {
+                                // Ved update: Genindlæs siden for at se ændringer på dashboardet
+                                window.location.reload();
+                            } else {
+                                alert('Error saving: ' + (data.error || 'Unknown error'));
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalBtnText;
+                            }
+                        });
+                    } else {
+                        // Ved create: Vi får HTML tilbage (Media Step), så vis det i modalen
+                        return response.text().then(html => {
+                            const modalContent = form.closest('.modal-content');
+                            if (modalContent) {
+                                modalContent.innerHTML = html;
+                                if (typeof App.initMediaUploads === 'function')
+                                    App.initMediaUploads();
+                            }
+                        });
+                    }
+                })
+                .catch((err) => {
+                    console.error(err);
+                    alert('An error occurred while saving.');
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                });
 		});
 	}
 };

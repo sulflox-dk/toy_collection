@@ -183,8 +183,8 @@ class ToyController extends Controller {
             }
         }
         
-        $_GET['id'] = $id;
-        $this->media_step();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
         exit;
     }
 
