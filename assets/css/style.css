@@ -281,14 +281,14 @@ h5,
 
 /* Headeren skal være diskret men adskilt, præcis som i din seneste screenshot */
 .child-item-header {
-	background-color: #fff;
-	border-bottom: 1px solid #dee2e6;
-	font-weight: bold;
-	font-size: 0.875rem;
-	padding: 0.75rem 1rem;
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
+    background-color: #fff !important; /* �ndret til hvid */
+    border-bottom: 1px solid #dee2e6;
+    font-weight: bold;
+    font-size: 0.875rem;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 /* Sikrer at indholdet i kortet får luft nok */

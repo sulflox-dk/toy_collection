@@ -196,10 +196,11 @@ $jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
     <div class="card child-item-row">
         <input type="hidden" name="items[INDEX][id]" class="item-db-id">
         
-        <div class="card-header child-item-header">
+        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2 text-muted fw-normal">
             <span>
                 <i class="fas fa-puzzle-piece me-2"></i>
-                <span class="item-display-name text-uppercase">New Item</span>
+                <span class="item-display-name text-uppercase text-secondary">New Item</span>
+                <span class="item-type-display text-body-tertiary fw-normal ms-1"></span>
             </span>
             <button type="button" class="btn btn-sm btn-outline-secondary px-2 delete-btn-general remove-row-btn">
                 <i class="far fa-trash-alt me-1"></i> Delete

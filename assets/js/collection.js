@@ -76,10 +76,22 @@ App.initDependentDropdowns = function () {
 	};
 
 	// Den "kloge" add funktion der håndterer både nye og eksisterende
-	const addItemRow = (data = null) => {
+	const addItemRow = async (data = null) => {
+		// Hvis vi ikke har hentet parts endnu, gør det nu
+		if (availableParts.length === 0 && toySelect.value) {
+			try {
+				const res = await fetch(
+					`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${toySelect.value}`,
+				);
+				availableParts = await res.json();
+			} catch (e) {
+				console.error(e);
+			}
+		}
+
 		const index = rowCount++;
 		const clone = template.content.cloneNode(true);
-		const row = clone.querySelector('.child-item-row');
+		const row = clone.querySelector('.child-item-row'); // Gem reference til rækken
 
 		// 1. Unikke navne/IDs
 		clone.querySelectorAll('[name*="INDEX"]').forEach((el) => {
@@ -90,59 +102,90 @@ App.initDependentDropdowns = function () {
 			el.setAttribute('for', el.getAttribute('for').replace('INDEX', index));
 		});
 
-		// 2. Setup Dropdown
-		const partSelect = row.querySelector('.item-part-select');
-		let options =
-			availableParts.length > 0
-				? '<option value="">Select Item...</option>'
-				: '<option value="">Select Master Toy first...</option>';
+		// 2. Setup Dropdown & LIVE Update logik (NYT HER)
+		const partSelect = clone.querySelector('.item-part-select');
+		const titleSpan = clone.querySelector('.item-display-name');
+		const typeSpan = clone.querySelector('.item-type-display'); // Den nye span
 
 		if (availableParts.length > 0) {
+			let options = '<option value="">Select Item...</option>';
 			availableParts.forEach((part) => {
 				options += `<option value="${part.id}">${part.name} (${part.type})</option>`;
 			});
+			partSelect.innerHTML = options;
+		} else {
+			partSelect.innerHTML =
+				'<option value="">Unknown Parts (Select Toy above first)</option>';
 		}
-		partSelect.innerHTML = options;
 
-		// 3. Håndter Data (Edit Mode) vs Ny
-		const deleteBtn = row.querySelector('.remove-row-btn');
-		const titleSpan = row.querySelector('.item-display-name');
+		// LYTTER: Opdater headeren når man vælger i dropdownen
+		partSelect.addEventListener('change', function () {
+			const selectedId = this.value;
+			const part = availableParts.find((p) => p.id == selectedId);
+			if (part) {
+				titleSpan.textContent = part.name;
+				if (typeSpan) typeSpan.textContent = ` (${part.type})`;
+			} else {
+				titleSpan.textContent = 'New Item';
+				if (typeSpan) typeSpan.textContent = '';
+			}
+		});
 
+		// 3. Håndter Data (Edit Mode)
 		if (data) {
-			// EDIT MODE: Udfyld felter
-			row.querySelector('.item-db-id').value = data.id;
+            // Gem ID til sletning
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = `items[${index}][id]`;
+            idInput.value = data.id;
+            idInput.className = 'item-db-id'; // Vigtig klasse til sletning
+            row.prepend(idInput);
+
+			// Udfyld overskrift og type fra databasen
 			titleSpan.textContent = data.part_name || 'Item';
+			if (data.part_type && typeSpan) {
+				typeSpan.textContent = ` (${data.part_type})`;
+			}
 
 			if (partSelect) partSelect.value = data.master_toy_item_id;
-			if (data.is_loose == 1) row.querySelector('.input-loose').checked = true;
-			else row.querySelector('.input-loose').checked = false;
+			if (data.is_loose == 1)
+				clone.querySelector('.input-loose').checked = true;
+			else clone.querySelector('.input-loose').checked = false;
 
-			row.querySelector('.input-condition').value = data.condition || '';
-			row.querySelector('.input-repro').value = data.is_reproduction || '';
-			row.querySelector('.input-p-date').value = data.purchase_date || '';
-			row.querySelector('.input-price').value = data.purchase_price || '';
-			row.querySelector('.input-source').value = data.source_id || '';
-			row.querySelector('.input-acq').value = data.acquisition_status || '';
-			row.querySelector('.input-exp-date').value =
+			clone.querySelector('.input-condition').value = data.condition || '';
+			clone.querySelector('.input-repro').value =
+				data.is_reproduction || '';
+			clone.querySelector('[name*="[purchase_date]"]').value =
+				data.purchase_date || '';
+			clone.querySelector('[name*="[purchase_price]"]').value =
+				data.purchase_price || '';
+			clone.querySelector('[name*="[source_id]"]').value =
+				data.source_id || '';
+			clone.querySelector('[name*="[acquisition_status]"]').value =
+				data.acquisition_status || '';
+			clone.querySelector('[name*="[expected_arrival_date]"]').value =
 				data.expected_arrival_date || '';
-			row.querySelector('.input-pers-id').value = data.personal_item_id || '';
-			row.querySelector('.input-storage').value = data.storage_id || '';
-			row.querySelector('.input-comments').value = data.user_comments || '';
+			clone.querySelector('[name*="[personal_item_id]"]').value =
+				data.personal_item_id || '';
+			clone.querySelector('[name*="[storage_id]"]').value =
+				data.storage_id || '';
+			clone.querySelector('[name*="[user_comments]"]').value =
+				data.user_comments || '';
 
-			// SLET LOGIK FOR DATABASE ITEMS
-			deleteBtn.setAttribute('title', 'Remove Item from Collection');
+			// SLET LOGIK (Eksisterende items)
+			const deleteBtn = clone.querySelector('.remove-row-btn');
 			deleteBtn.onclick = function (e) {
-				e.preventDefault(); // Undgå form submit
+				e.preventDefault();
 				if (data.id) {
 					App.deleteToyItem(data.id, this);
 				}
 			};
 		} else {
-			// NY ITEM
-			// SLET LOGIK FOR NYE (DOM fjernelse)
+			// SLET LOGIK (Nye items - fjern kun fra HTML)
+			const deleteBtn = clone.querySelector('.remove-row-btn');
 			deleteBtn.onclick = function (e) {
 				e.preventDefault();
-				row.remove();
+				e.target.closest('.child-item-row').remove();
 				updateCount();
 			};
 		}
@@ -150,7 +193,7 @@ App.initDependentDropdowns = function () {
 		container.appendChild(clone);
 		updateCount();
 
-		// Scroll til bunden hvis det er en manuel tilføjelse (ikke data load)
+		// Scroll til bunden kun hvis det er manuel tilføjelse
 		if (!data) {
 			const newRow = container.lastElementChild;
 			if (newRow)
