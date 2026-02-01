@@ -19,6 +19,17 @@ App.initDependentDropdowns = function () {
 	let availableParts = [];
 	let rowCount = 0;
 
+	// Hent data fra containeren (Edit mode data og dele)
+	if (container) {
+		try {
+			if (container.dataset.parts) {
+				availableParts = JSON.parse(container.dataset.parts);
+			}
+		} catch (e) {
+			console.error('JSON parse error in parts', e);
+		}
+	}
+
 	// --- HELPERS ---
 	const resetSelect = (el, msg) => {
 		if (el) {
@@ -35,7 +46,131 @@ App.initDependentDropdowns = function () {
 		el.disabled = false;
 	};
 
-	// --- DROPDOWNS ---
+	const updateCount = () => {
+		const count = container.querySelectorAll('.child-item-row').length;
+		if (countBadge) countBadge.textContent = `${count} items`;
+	};
+
+	// --- CORE ITEM LOGIC ---
+	const refreshExistingRows = () => {
+		// Opdater dropdowns i ALLE rækker hvis parent toy skifter
+		const selects = container.querySelectorAll('.item-part-select');
+		selects.forEach((select) => {
+			const currentVal = select.value;
+			let options =
+				availableParts.length > 0
+					? '<option value="">Select Item...</option>'
+					: '<option value="">Unknown Parts (Select Toy above first)</option>';
+
+			if (availableParts.length > 0) {
+				availableParts.forEach((part) => {
+					options += `<option value="${part.id}">${part.name} (${part.type})</option>`;
+				});
+			}
+			select.innerHTML = options;
+			// Prøv at bevare værdien hvis den stadig findes
+			if (currentVal && availableParts.some((p) => p.id == currentVal)) {
+				select.value = currentVal;
+			}
+		});
+	};
+
+	// Den "kloge" add funktion der håndterer både nye og eksisterende
+	const addItemRow = (data = null) => {
+		const index = rowCount++;
+		const clone = template.content.cloneNode(true);
+		const row = clone.querySelector('.child-item-row');
+
+		// 1. Unikke navne/IDs
+		clone.querySelectorAll('[name*="INDEX"]').forEach((el) => {
+			el.name = el.name.replace('INDEX', index);
+			if (el.id) el.id = el.id.replace('INDEX', index);
+		});
+		clone.querySelectorAll('[for*="INDEX"]').forEach((el) => {
+			el.setAttribute('for', el.getAttribute('for').replace('INDEX', index));
+		});
+
+		// 2. Setup Dropdown
+		const partSelect = row.querySelector('.item-part-select');
+		let options =
+			availableParts.length > 0
+				? '<option value="">Select Item...</option>'
+				: '<option value="">Select Master Toy first...</option>';
+
+		if (availableParts.length > 0) {
+			availableParts.forEach((part) => {
+				options += `<option value="${part.id}">${part.name} (${part.type})</option>`;
+			});
+		}
+		partSelect.innerHTML = options;
+
+		// 3. Håndter Data (Edit Mode) vs Ny
+		const deleteBtn = row.querySelector('.remove-row-btn');
+		const titleSpan = row.querySelector('.item-display-name');
+
+		if (data) {
+			// EDIT MODE: Udfyld felter
+			row.querySelector('.item-db-id').value = data.id;
+			titleSpan.textContent = data.part_name || 'Item';
+
+			if (partSelect) partSelect.value = data.master_toy_item_id;
+			if (data.is_loose == 1) row.querySelector('.input-loose').checked = true;
+			else row.querySelector('.input-loose').checked = false;
+
+			row.querySelector('.input-condition').value = data.condition || '';
+			row.querySelector('.input-repro').value = data.is_reproduction || '';
+			row.querySelector('.input-p-date').value = data.purchase_date || '';
+			row.querySelector('.input-price').value = data.purchase_price || '';
+			row.querySelector('.input-source').value = data.source_id || '';
+			row.querySelector('.input-acq').value = data.acquisition_status || '';
+			row.querySelector('.input-exp-date').value =
+				data.expected_arrival_date || '';
+			row.querySelector('.input-pers-id').value = data.personal_item_id || '';
+			row.querySelector('.input-storage').value = data.storage_id || '';
+			row.querySelector('.input-comments').value = data.user_comments || '';
+
+			// SLET LOGIK FOR DATABASE ITEMS
+			deleteBtn.setAttribute('title', 'Remove Item from Collection');
+			deleteBtn.onclick = function (e) {
+				e.preventDefault(); // Undgå form submit
+				if (data.id) {
+					App.deleteToyItem(data.id, this);
+				}
+			};
+		} else {
+			// NY ITEM
+			// SLET LOGIK FOR NYE (DOM fjernelse)
+			deleteBtn.onclick = function (e) {
+				e.preventDefault();
+				row.remove();
+				updateCount();
+			};
+		}
+
+		container.appendChild(clone);
+		updateCount();
+
+		// Scroll til bunden hvis det er en manuel tilføjelse (ikke data load)
+		if (!data) {
+			const newRow = container.lastElementChild;
+			if (newRow)
+				newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+	};
+
+	// --- INIT EXISTING ITEMS ---
+	if (container && container.dataset.items) {
+		try {
+			const existingItems = JSON.parse(container.dataset.items);
+			if (Array.isArray(existingItems)) {
+				existingItems.forEach((item) => addItemRow(item));
+			}
+		} catch (e) {
+			console.error('Error parsing items', e);
+		}
+	}
+
+	// --- DROPDOWNS (Universe/Line/Etc) ---
 	const loadManufacturers = (universeId) => {
 		if (!manufacturerSelect) return;
 		manufacturerSelect.innerHTML = '<option>Loading...</option>';
@@ -85,6 +220,7 @@ App.initDependentDropdowns = function () {
 	};
 
 	const loadParts = (toyId) => {
+		// Hvis vi skifter toy, henter vi nye dele
 		availableParts = [];
 		if (!toyId) {
 			refreshExistingRows();
@@ -98,79 +234,6 @@ App.initDependentDropdowns = function () {
 				availableParts = data;
 				refreshExistingRows();
 			});
-	};
-
-	const refreshExistingRows = () => {
-		const selects = container.querySelectorAll('.item-part-select');
-		selects.forEach((select) => {
-			const currentVal = select.value;
-			let options =
-				availableParts.length > 0
-					? '<option value="">Select Item...</option>'
-					: '<option value="">Unknown Parts (Select Toy above first)</option>';
-			if (availableParts.length > 0)
-				availableParts.forEach((part) => {
-					options += `<option value="${part.id}">${part.name} (${part.type})</option>`;
-				});
-			select.innerHTML = options;
-			select.value = availableParts.some((p) => p.id == currentVal)
-				? currentVal
-				: '';
-		});
-	};
-
-	const addItemRow = async () => {
-		if (availableParts.length === 0 && toySelect.value) {
-			try {
-				const res = await fetch(
-					`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${toySelect.value}`,
-				);
-				availableParts = await res.json();
-			} catch (e) {
-				console.error(e);
-			}
-		}
-		const index = rowCount;
-		rowCount++;
-		const clone = template.content.cloneNode(true);
-
-		clone.querySelectorAll('[name*="INDEX"]').forEach((el) => {
-			el.name = el.name.replace('INDEX', index);
-			if (el.id) el.id = el.id.replace('INDEX', index);
-		});
-		clone.querySelectorAll('[for*="INDEX"]').forEach((el) => {
-			el.setAttribute('for', el.getAttribute('for').replace('INDEX', index));
-		});
-		clone.querySelector('.row-number').textContent = rowCount;
-
-		const partSelect = clone.querySelector('.item-part-select');
-		if (availableParts.length > 0) {
-			let options = '<option value="">Select Item...</option>';
-			availableParts.forEach((part) => {
-				options += `<option value="${part.id}">${part.name} (${part.type})</option>`;
-			});
-			partSelect.innerHTML = options;
-		} else {
-			partSelect.innerHTML =
-				'<option value="">Unknown Parts (Select Toy above first)</option>';
-		}
-
-		clone
-			.querySelector('.remove-row-btn')
-			.addEventListener('click', function (e) {
-				e.target.closest('.child-item-row').remove();
-				updateCount();
-			});
-		container.appendChild(clone);
-		updateCount();
-		const newRow = container.lastElementChild;
-		if (newRow)
-			newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-	};
-
-	const updateCount = () => {
-		const count = container.querySelectorAll('.child-item-row').length;
-		if (countBadge) countBadge.textContent = `${count} items`;
 	};
 
 	// Event listeners
@@ -195,7 +258,7 @@ App.initDependentDropdowns = function () {
 		lineSelect.addEventListener('change', (e) => loadToys(e.target.value));
 	if (toySelect)
 		toySelect.addEventListener('change', (e) => loadParts(e.target.value));
-	if (btnAddItem) btnAddItem.addEventListener('click', addItemRow);
+	if (btnAddItem) btnAddItem.addEventListener('click', () => addItemRow());
 
 	// Ajax submit
 	const form = document.getElementById('addToyForm');
@@ -461,7 +524,7 @@ App.deleteMedia = function (mediaId, btnElement) {
 		.then((res) => res.json())
 		.then((data) => {
 			if (data.success) {
-				// Fjern hele rÃ¦kken med en lille animation
+				// Fjern hele rækken med en lille animation
 				const row = btnElement.closest('.media-preview-row');
 				row.style.opacity = '0';
 				setTimeout(() => row.remove(), 300);
@@ -472,7 +535,7 @@ App.deleteMedia = function (mediaId, btnElement) {
 		.catch((err) => console.error('Delete request failed', err));
 };
 
-// I assets/js/collection.js
+// GLOBAL: Delete Item Logic
 App.deleteToyItem = function (itemId, btnElement) {
 	if (
 		!confirm(
@@ -495,7 +558,7 @@ App.deleteToyItem = function (itemId, btnElement) {
 				row.style.opacity = '0';
 				setTimeout(() => {
 					row.remove();
-					// Opdater badge tÃ¦lleren hvis den findes
+					// Opdater badge tælleren hvis den findes
 					const badge = document.getElementById('itemCountBadge');
 					if (badge) {
 						const currentCount =

@@ -3,6 +3,10 @@
 $isEdit = isset($mode) && $mode === 'edit';
 $action = $isEdit ? 'update' : 'create';
 $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
+
+// Forbered data til JS så vi kan bruge det i templaten
+$jsonItems = json_encode($childItems ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
+$jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 
 <div class="modal-header bg-dark text-white">
@@ -167,142 +171,12 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="section-label mb-0">Included Items (Parts/Figures)</h6>
-            <span class="badge item-count-badge" id="itemCountBadge"><?= isset($childItems) ? count($childItems) : 0 ?> items</span>
+            <span class="badge item-count-badge" id="itemCountBadge">0 items</span>
         </div>
         
-        <div id="childItemsContainer">
-            <?php if($isEdit && !empty($childItems)): ?>
-                <?php foreach($childItems as $idx => $item): ?>
-                    <div class="card mb-3 shadow-sm child-item-row">
-                        <input type="hidden" name="items[<?= $idx ?>][id]" value="<?= $item['id'] ?>">
-                        
-                        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2 text-muted fw-normal">
-                            <span>
-                                <i class="fas fa-puzzle-piece me-2"></i>
-                                <span class="text-uppercase text-secondary"><?= htmlspecialchars($item['part_name'] ?? 'Item') ?></span>
-                                <span class="text-body-tertiary fw-normal">(<?= $item['part_type'] ?? 'Part' ?>)</span>
-                            </span>
-                            
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-secondary px-2 delete-btn-general" 
-                                    onclick="App.deleteToyItem(<?= $item['id'] ?>, this)" 
-                                    title="Remove Item from Collection">
-                                <i class="far fa-trash-alt me-1"></i> Delete
-                            </button>
-                        </div>
-
-                        <div class="card-body p-3 bg-white">
-                            
-                            <div class="row g-3 mb-3 align-items-end">
-                                <div class="col-md-5">
-                                    <label class="form-label small text-muted mb-1">Item</label>
-                                    <select class="form-select form-select-sm item-part-select border-dark" name="items[<?= $idx ?>][master_toy_item_id]" required>
-                                        <?php if(isset($availableParts)): ?>
-                                            <?php foreach($availableParts as $part): ?>
-                                                <option value="<?= $part['id'] ?>" <?= $part['id'] == $item['master_toy_item_id'] ? 'selected' : '' ?>>
-                                                    <?= htmlspecialchars($part['name']) ?> (<?= $part['type'] ?>)
-                                                </option>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <option value="<?= $item['master_toy_item_id'] ?>" selected>Current Item (ID: <?= $item['master_toy_item_id'] ?>)</option>
-                                        <?php endif; ?>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-md-2">
-                                    <div class="form-check mb-1">
-                                        <input class="form-check-input" type="checkbox" name="items[<?= $idx ?>][is_loose]" value="1" id="loose_<?= $idx ?>" <?= $item['is_loose'] ? 'checked' : '' ?>>
-                                        <label class="form-check-label" for="loose_<?= $idx ?>">Loose</label>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-2">
-                                    <label class="form-label small text-muted mb-1">Condition</label>
-                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][condition]">
-                                        <option value="">Select...</option>
-                                        <?php foreach($conditions as $c): ?>
-                                            <option value="<?= $c ?>" <?= $item['condition'] == $c ? 'selected' : '' ?>><?= $c ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label class="form-label small text-muted mb-1">Authenticity</label>
-                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][is_reproduction]">
-                                        <option value="">Select...</option>
-                                        <option value="Original" <?= ($item['is_reproduction'] ?? '') === 'Original' ? 'selected' : '' ?>>Original</option>
-                                        <option value="Reproduction" <?= ($item['is_reproduction'] ?? '') === 'Reproduction' ? 'selected' : '' ?>>Repro</option>
-                                        <option value="Unknown" <?= ($item['is_reproduction'] ?? '') === 'Unknown' ? 'selected' : '' ?>>Unknown</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <hr class="text-muted opacity-25 my-2">
-
-                            <h6 class="text-muted text-uppercase mb-2 small-section-header">Purchase Information (if different)</h6>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">Purchase Date</label>
-                                    <input type="date" class="form-control form-control-sm" name="items[<?= $idx ?>][purchase_date]" value="<?= $item['purchase_date'] ?? '' ?>">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">Purchase Price</label>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text">kr.</span>
-                                        <input type="number" step="0.01" class="form-control" name="items[<?= $idx ?>][purchase_price]" placeholder="Default" value="<?= $item['purchase_price'] ?? '' ?>">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">Source (Shop/Person)</label>
-                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][source_id]">
-                                        <option value="">Use General Source</option>
-                                        <?php foreach($sources as $s): ?>
-                                            <option value="<?= $s['id'] ?>" <?= ($item['source_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">Acquisition Status</label>
-                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][acquisition_status]">
-                                        <option value="">Use General Status</option>
-                                        <?php foreach($statuses as $st): ?>
-                                            <option value="<?= $st ?>" <?= ($item['acquisition_status'] ?? '') == $st ? 'selected' : '' ?>><?= $st ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="form-label small text-muted mb-1">Expected Arrival</label>
-                                    <input type="date" class="form-control form-control-sm" name="items[<?= $idx ?>][expected_arrival_date]" value="<?= $item['expected_arrival_date'] ?? '' ?>">
-                                </div>
-                            </div>
-
-                            <hr class="text-muted opacity-25 my-2">
-
-                            <h6 class="text-muted text-uppercase mb-2 small-section-header">Collection Metadata</h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">Personal Toy ID</label>
-                                    <input type="text" class="form-control form-control-sm" name="items[<?= $idx ?>][personal_item_id]" placeholder="e.g. SW-ACC-001" value="<?= htmlspecialchars($item['personal_item_id'] ?? '') ?>">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">Storage</label>
-                                    <select class="form-select form-select-sm" name="items[<?= $idx ?>][storage_id]">
-                                        <option value="">Use General Storage</option>
-                                        <?php foreach($storages as $loc): ?>
-                                            <option value="<?= $loc['id'] ?>" <?= ($item['storage_id'] ?? '') == $loc['id'] ? 'selected' : '' ?>><?= htmlspecialchars($loc['name']) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label small text-muted mb-1">Comments</label>
-                                    <input type="text" class="form-control form-control-sm" name="items[<?= $idx ?>][user_comments]" placeholder="Specific notes..." value="<?= htmlspecialchars($item['user_comments'] ?? '') ?>">
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
+        <div id="childItemsContainer" 
+             data-items='<?= $jsonItems ?>' 
+             data-parts='<?= $jsonParts ?>'>
         </div>
 
         <button type="button" class="btn btn-outline-dark w-100 py-2 border-dashed" id="btnAddItemRow">
@@ -319,14 +193,20 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 </form>
 
 <template id="childRowTemplate">
-    <div class="card mb-4 shadow-sm child-item-row">
+    <div class="card child-item-row">
+        <input type="hidden" name="items[INDEX][id]" class="item-db-id">
         
-        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2">
-            <span class="text-uppercase"><i class="fas fa-puzzle-piece me-2"></i>Item #<span class="row-number">1</span></span>
-            <button type="button" class="btn-close btn-sm remove-row-btn" aria-label="Remove"></button>
+        <div class="card-header child-item-header">
+            <span>
+                <i class="fas fa-puzzle-piece me-2"></i>
+                <span class="item-display-name text-uppercase">New Item</span>
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-secondary px-2 delete-btn-general remove-row-btn">
+                <i class="far fa-trash-alt me-1"></i> Delete
+            </button>
         </div>
 
-        <div class="card-body p-3 bg-white">
+        <div class="card-body">
             
             <div class="row g-3 mb-3 align-items-end">
                 <div class="col-md-5">
@@ -338,14 +218,14 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                 
                 <div class="col-md-2">
                     <div class="form-check mb-1">
-                        <input class="form-check-input" type="checkbox" name="items[INDEX][is_loose]" value="1" id="loose_INDEX" checked>
+                        <input class="form-check-input input-loose" type="checkbox" name="items[INDEX][is_loose]" value="1" id="loose_INDEX" checked>
                         <label class="form-check-label" for="loose_INDEX">Loose</label>
                     </div>
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">Condition</label>
-                    <select class="form-select form-select-sm" name="items[INDEX][condition]">
+                    <select class="form-select form-select-sm input-condition" name="items[INDEX][condition]">
                         <option value="">Select...</option>
                         <?php foreach($conditions as $c): ?>
                             <option value="<?= $c ?>"><?= $c ?></option>
@@ -354,7 +234,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                 </div>
                 <div class="col-md-3">
                     <label class="form-label small text-muted mb-1">Authenticity</label>
-                    <select class="form-select form-select-sm" name="items[INDEX][is_reproduction]">
+                    <select class="form-select form-select-sm input-repro" name="items[INDEX][is_reproduction]">
                         <option value="">Select...</option>
                         <option value="Original">Original</option>
                         <option value="Reproduction">Repro</option>
@@ -369,18 +249,18 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Purchase Date</label>
-                    <input type="date" class="form-control form-control-sm" name="items[INDEX][purchase_date]">
+                    <input type="date" class="form-control form-control-sm input-p-date" name="items[INDEX][purchase_date]">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Purchase Price</label>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text">kr.</span>
-                        <input type="number" step="0.01" class="form-control" name="items[INDEX][purchase_price]" placeholder="Default">
+                        <input type="number" step="0.01" class="form-control input-price" name="items[INDEX][purchase_price]" placeholder="Default">
                     </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Source (Shop/Person)</label>
-                    <select class="form-select form-select-sm" name="items[INDEX][source_id]">
+                    <select class="form-select form-select-sm input-source" name="items[INDEX][source_id]">
                         <option value="">Use General Source</option>
                         <?php foreach($sources as $s): ?>
                             <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
@@ -389,7 +269,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                 </div>
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Acquisition Status</label>
-                    <select class="form-select form-select-sm" name="items[INDEX][acquisition_status]">
+                    <select class="form-select form-select-sm input-acq" name="items[INDEX][acquisition_status]">
                         <option value="">Use General Status</option>
                         <?php foreach($statuses as $st): ?>
                             <option value="<?= $st ?>"><?= $st ?></option>
@@ -398,7 +278,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                 </div>
                 <div class="col-md-12">
                     <label class="form-label small text-muted mb-1">Expected Arrival (if applicable)</label>
-                    <input type="date" class="form-control form-control-sm" name="items[INDEX][expected_arrival_date]">
+                    <input type="date" class="form-control form-control-sm input-exp-date" name="items[INDEX][expected_arrival_date]">
                 </div>
             </div>
 
@@ -408,11 +288,11 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Personal Toy ID</label>
-                    <input type="text" class="form-control form-control-sm" name="items[INDEX][personal_item_id]" placeholder="e.g. SW-ACC-001">
+                    <input type="text" class="form-control form-control-sm input-pers-id" name="items[INDEX][personal_item_id]" placeholder="e.g. SW-ACC-001">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Storage</label>
-                    <select class="form-select form-select-sm" name="items[INDEX][storage_id]">
+                    <select class="form-select form-select-sm input-storage" name="items[INDEX][storage_id]">
                         <option value="">Use General Storage</option>
                         <?php foreach($storages as $loc): ?>
                             <option value="<?= $loc['id'] ?>"><?= htmlspecialchars($loc['name']) ?></option>
@@ -421,7 +301,7 @@ $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
                 </div>
                 <div class="col-12">
                     <label class="form-label small text-muted mb-1">Comments</label>
-                    <input type="text" class="form-control form-control-sm" name="items[INDEX][user_comments]" placeholder="Specific notes (e.g. 'Tip broken', 'Maling slidt')...">
+                    <input type="text" class="form-control form-control-sm input-comments" name="items[INDEX][user_comments]" placeholder="Specific notes (e.g. 'Tip broken', 'Maling slidt')...">
                 </div>
             </div>
 
