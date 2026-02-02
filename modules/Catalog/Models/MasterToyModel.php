@@ -14,10 +14,8 @@ class MasterToyModel {
         $offset = ($page - 1) * $perPage;
         $params = [];
         $where = [];
-        $joins = [];
 
-        // Base Select
-        // Vi bruger DISTINCT fordi en join med items (ved subjectsøgning) kan give dubletter
+        // Base Select (Husk DISTINCT er vigtig her, ellers får du dubletter hvis søgningen matcher flere items i samme æske)
         $sql = "SELECT DISTINCT mt.*, 
                        tl.name as line_name, 
                        m.name as manufacturer_name,
@@ -33,41 +31,38 @@ class MasterToyModel {
                 LEFT JOIN manufacturers m ON tl.manufacturer_id = m.id
                 LEFT JOIN product_types pt ON mt.product_type_id = pt.id
                 LEFT JOIN entertainment_sources es ON mt.entertainment_source_id = es.id
-                -- Hent primært billede
                 LEFT JOIN master_toy_media_map mtmm ON mt.id = mtmm.master_toy_id AND mtmm.is_main = 1
-                LEFT JOIN media_files mf ON mtmm.media_file_id = mf.id";
+                LEFT JOIN media_files mf ON mtmm.media_file_id = mf.id
+                
+                -- NYE JOINS TIL SØGNING (Aliased med '_search' for ikke at konflikte med andet)
+                LEFT JOIN master_toy_items mti_search ON mt.id = mti_search.master_toy_id
+                LEFT JOIN subjects s_search ON mti_search.subject_id = s_search.id";
 
         // --- FILTERS ---
 
-        // 1. Universe (Via Toy Line)
         if (!empty($filters['universe_id'])) {
             $where[] = "tl.universe_id = :uid";
             $params['uid'] = $filters['universe_id'];
         }
 
-        // 2. Toy Line
         if (!empty($filters['line_id'])) {
             $where[] = "mt.line_id = :lid";
             $params['lid'] = $filters['line_id'];
         }
 
-        // 3. Subject (Kræver join med items)
-        if (!empty($filters['subject_id'])) {
-            $joins['items'] = true; // Flag at vi skal joine items
-            $where[] = "mti_filter.subject_id = :sid";
-            $params['sid'] = $filters['subject_id'];
+        if (!empty($filters['source_id'])) {
+            $where[] = "mt.entertainment_source_id = :esid";
+            $params['esid'] = $filters['source_id'];
         }
 
-        // 4. Search (Name, SKU, Subject Name)
+        // UPDATED SEARCH FILTER
         if (!empty($filters['search'])) {
             $term = '%' . $filters['search'] . '%';
-            $joins['items_search'] = true; // Vi skal bruge items tabellen til at søge i subjects
-            
             $where[] = "(
                 mt.name LIKE :s1 OR 
                 mt.assortment_sku LIKE :s2 OR 
                 mt.wave_number LIKE :s3 OR
-                s_search.name LIKE :s4
+                s_search.name LIKE :s4  -- NY SØGEBETINGELSE
             )";
             $params['s1'] = $term;
             $params['s2'] = $term;
@@ -75,32 +70,23 @@ class MasterToyModel {
             $params['s4'] = $term;
         }
 
-        // --- DYNAMIC JOINS ---
-        // Vi tilføjer kun tunge joins hvis nødvendigt
-        if (isset($joins['items'])) {
-            $sql .= " JOIN master_toy_items mti_filter ON mt.id = mti_filter.master_toy_id ";
-        }
-        if (isset($joins['items_search'])) {
-            // Hvis vi ikke allerede har joinet items ovenfor
-            if (!isset($joins['items'])) {
-                $sql .= " LEFT JOIN master_toy_items mti_search ON mt.id = mti_search.master_toy_id ";
-            } else {
-                // Genbrug den eksisterende join alias hvis muligt, men her laver vi en separat for sikkerheds skyld
-                // eller simpelthen joiner subjects på den eksisterende.
-                // For simpelheds skyld i denne model:
-            }
-            // Join Subjects for at søge i navnet
-            $alias = isset($joins['items']) ? 'mti_filter' : 'mti_search';
-            $sql .= " LEFT JOIN subjects s_search ON $alias.subject_id = s_search.id ";
-        }
-
         if (!empty($where)) {
             $sql .= " WHERE " . implode(' AND ', $where);
         }
 
-        // Count Total
-        // Vi pakker det ind i en subquery for at tælle DISTINCT korrekt
+        // Count Total (Distinct er vigtig her også)
+        $countSql = "SELECT COUNT(DISTINCT mt.id) FROM master_toys mt 
+                     LEFT JOIN toy_lines tl ON mt.line_id = tl.id 
+                     LEFT JOIN master_toy_items mti_search ON mt.id = mti_search.master_toy_id
+                     LEFT JOIN subjects s_search ON mti_search.subject_id = s_search.id
+                     WHERE " . (!empty($where) ? implode(' AND ', $where) : '1=1');
+                     
+        // Bemærk: Jeg har forsimplet countSql lidt herover for at matche where-klausulerne korrekt uden at joine alt det unødvendige (billeder osv.) i tælleren.
+        // Men den nemmeste "safe fix" hvis ovenstående driller, er at bruge subquery metoden fra før:
+        // $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table"; 
+        // Lad os holde os til subquery metoden, den er mest sikker med dine filtre:
         $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table";
+        
         $total = $this->db->query($countSql, $params)->fetchColumn();
 
         // Sort & Limit

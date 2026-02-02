@@ -5,21 +5,21 @@ use CollectionApp\Kernel\Controller;
 use CollectionApp\Modules\Catalog\Models\MasterToyModel;
 use CollectionApp\Modules\Catalog\Models\ToyLineModel;
 use CollectionApp\Modules\Universe\Models\UniverseModel;
-use CollectionApp\Modules\Universe\Models\SubjectModel;
+use CollectionApp\Modules\Universe\Models\EntertainmentSourceModel; // NY MODEL
 
 class MasterToyController extends Controller {
 
     private $model;
     private $lineModel;
     private $uniModel;
-    private $subModel;
+    private $sourceModel; // NYT PROPERTY
 
     public function __construct() {
         parent::__construct();
         $this->model = new MasterToyModel();
         $this->lineModel = new ToyLineModel();
         $this->uniModel = new UniverseModel();
-        $this->subModel = new SubjectModel();
+        $this->sourceModel = new EntertainmentSourceModel(); // INSTANSIER
     }
 
     public function index() {
@@ -30,16 +30,17 @@ class MasterToyController extends Controller {
 
         $universes = $this->uniModel->getAllWithStats();
         $lines = $this->lineModel->getAllSimple();
-        $subjects = $this->subModel->getAllSimple(); 
+        
+        // HENT SOURCES I STEDET FOR SUBJECTS
+        $sources = $this->sourceModel->getAllSimple(); 
 
         $initialData = $this->model->getFiltered([], 1, 20);
         
-        // RETTET: Filnavn og script navn opdateret til master_toy_
         $this->view->render('master_toy_index', [
             'title' => 'Catalog: Master Toys',
             'universes' => $universes,
             'lines' => $lines,
-            'subjects' => $subjects,
+            'sources' => $sources, // SEND MED TIL VIEW
             'initialData' => $initialData,
             'scripts' => ['assets/js/master_toy_manager.js'] 
         ], 'Catalog');
@@ -50,13 +51,12 @@ class MasterToyController extends Controller {
         $filters = [
             'universe_id' => $_GET['universe_id'] ?? '',
             'line_id'     => $_GET['line_id'] ?? '',
-            'subject_id'  => $_GET['subject_id'] ?? '',
+            'source_id'   => $_GET['source_id'] ?? '', // NY FILTER PARAMETER
             'search'      => $_GET['search'] ?? ''
         ];
 
         $data = $this->model->getFiltered($filters, $page, 20);
         
-        // RETTET: Filnavn opdateret
         $this->view->renderPartial('master_toy_grid', $data, 'Catalog');
     }
 

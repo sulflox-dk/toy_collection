@@ -39,8 +39,8 @@
                         <?php if(!empty($r['source_name'])): ?>
                             <div class="fw-medium"><?= htmlspecialchars($r['source_name']) ?></div>
                             <div class="small text-muted">
-                                <?= htmlspecialchars($r['source_type'] ?? '') ?>
-                                <?php if(!empty($r['source_year'])) echo ' / ' . $r['source_year']; ?>
+                                <?= htmlspecialchars($r['source_year'] ?? '') ?>
+                                <?php if(!empty($r['source_type'])) echo ' &bull; ' . htmlspecialchars($r['source_type']); ?>
                             </div>
                         <?php else: ?>
                             <span class="text-muted small">-</span>

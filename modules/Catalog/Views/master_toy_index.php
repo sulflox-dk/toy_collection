@@ -25,10 +25,12 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <select id="filterSubject" class="form-select form-select-sm">
-                    <option value="">All Subjects (Content)</option>
-                    <?php foreach($subjects as $s): ?>
-                        <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?> (<?= $s['type'] ?>)</option>
+                <select id="filterSource" class="form-select form-select-sm">
+                    <option value="">All Entertainment Sources</option>
+                    <?php foreach($sources as $s): ?>
+                        <option value="<?= $s['id'] ?>">
+                            <?= htmlspecialchars($s['name']) ?> (<?= htmlspecialchars($s['universe_name']) ?>)
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>

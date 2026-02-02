@@ -1,15 +1,18 @@
 const MasterToyMgr = {
     init: function() {
         this.baseUrl = App.baseUrl;
-        // RETTET: Container ID
         this.container = document.getElementById('masterToyGridContainer');
         this.search = document.getElementById('searchName');
+        
         this.filterUni = document.getElementById('filterUniverse');
         this.filterLine = document.getElementById('filterLine');
-        this.filterSub = document.getElementById('filterSubject');
+        
+        // RETTET: Ny reference
+        this.filterSource = document.getElementById('filterSource');
 
         // Event Listeners
-        const filters = [this.filterUni, this.filterLine, this.filterSub];
+        // RETTET: Inkluder filterSource i arrayet
+        const filters = [this.filterUni, this.filterLine, this.filterSource];
         filters.forEach(f => {
             if(f) f.addEventListener('change', () => this.loadPage(1));
         });
@@ -31,7 +34,10 @@ const MasterToyMgr = {
             ajax_grid: 1, page: page,
             universe_id: this.filterUni.value,
             line_id: this.filterLine.value,
-            subject_id: this.filterSub.value,
+            
+            // RETTET: Send source_id
+            source_id: this.filterSource.value,
+            
             search: this.search.value
         });
 
