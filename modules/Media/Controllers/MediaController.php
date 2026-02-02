@@ -63,6 +63,10 @@ class MediaController extends Controller {
                 $this->mediaModel->linkToParent($mediaId, $targetId);
             } elseif ($targetContext === 'collection_child') {
                 $this->mediaModel->linkToChild($mediaId, $targetId);
+            } elseif ($targetContext === 'catalog_parent') {
+                $this->mediaModel->linkToMasterParent($mediaId, $targetId);
+            } elseif ($targetContext === 'catalog_child') {
+                $this->mediaModel->linkToMasterChild($mediaId, $targetId);
             }
 
             echo json_encode(['success' => true, 'file_path' => $publicUrl, 'media_id' => $mediaId]);

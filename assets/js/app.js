@@ -60,3 +60,23 @@ const App = {
 			});
 	},
 };
+
+/**
+ * GLOBAL TOAST HELPER
+ */
+App.showToast = function(message, type = 'success') {
+    const toastEl = document.getElementById('liveToast');
+    const toastBody = document.getElementById('toastBody');
+    
+    if (!toastEl || !toastBody) return;
+
+    // Sæt tekst
+    toastBody.textContent = message;
+    
+    // Håndter farver (hvis du vil have error toasts senere)
+    toastEl.className = `toast align-items-center text-white border-0 bg-${type}`;
+
+    // Vis med Bootstrap
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+};

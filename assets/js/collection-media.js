@@ -136,19 +136,27 @@ App.initMediaUploads = function () {
         // --- Hover effekt på billedet ---
         const imgEl = rowDiv.querySelector('.media-img-frame img');
         if (imgEl) {
-            imgEl.style.cursor = 'zoom-in'; // Vis lup-ikon
+            imgEl.style.cursor = 'zoom-in';
             
+            let hoverTimeout; // Variabel til at holde styr på timeren
+
             imgEl.addEventListener('mouseenter', function() {
-                // Opret det store billede
-                const bigImg = document.createElement('img');
-                bigImg.src = this.src;
-                bigImg.className = 'media-hover-zoom';
-                bigImg.id = 'active-hover-zoom';
-                document.body.appendChild(bigImg);
+                // Vi starter en timer på 600ms (du kan ændre tallet hvis det skal være hurtigere/langsommere)
+                hoverTimeout = setTimeout(() => {
+                    const bigImg = document.createElement('img');
+                    bigImg.src = this.src;
+                    bigImg.className = 'media-hover-zoom';
+                    bigImg.id = 'active-hover-zoom';
+                    document.body.appendChild(bigImg);
+                }, 400); 
             });
 
             imgEl.addEventListener('mouseleave', function() {
-                // Fjern det store billede igen
+                // VIGTIGT: Stop timeren med det samme! 
+                // Hvis man flytter musen væk inden de 600ms, sker der ingenting.
+                clearTimeout(hoverTimeout);
+
+                // Fjern billedet, hvis det nåede at komme frem
                 const bigImg = document.getElementById('active-hover-zoom');
                 if (bigImg) bigImg.remove();
             });

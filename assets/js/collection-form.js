@@ -11,7 +11,7 @@ App.initDependentDropdowns = function () {
     
     // WIDGET ELEMENTS
     const widgetInput = document.getElementById('inputMasterToyId');
-    const widgetWrapper = document.getElementById('masterToyWidgetWrapper'); // Wrapperen med data
+    const widgetWrapper = document.getElementById('masterToyWidgetWrapper'); 
     const widgetCard = document.getElementById('masterToyDisplayCard');
     const widgetOverlay = document.getElementById('masterToyOverlay');
     const widgetSearch = document.getElementById('inputToySearch');
@@ -26,7 +26,7 @@ App.initDependentDropdowns = function () {
     let currentMasterToysList = [];   
     let rowCount = 0;
 
-    // Hent data fra containeren (Edit mode data og items)
+    // Hent data fra containeren
     if (container && container.dataset.masterToyItems) {
         try {
             availableMasterToyItems = JSON.parse(container.dataset.masterToyItems);
@@ -37,24 +37,41 @@ App.initDependentDropdowns = function () {
 
     const updateWidgetDisplay = (toy) => {
         const iconEl = document.getElementById('displayToyImgIcon');
-        const imgEl = document.getElementById('displayToyImg'); // Forberedelse til billeder
+        const imgEl = document.getElementById('displayToyImg'); 
 
         document.getElementById('displayToyTitle').textContent = toy ? toy.name : 'Select Toy...';
         
         if (toy) {
-            // Linie 2: Year + Type
+            // Tekst
             const line2 = [toy.release_year, toy.type_name].filter(Boolean).join(' - ');
             document.getElementById('displayToyMeta1').textContent = line2;
             
-            // Linie 3: Source Material (Filmen/Serien) - Fallback til Wave nummer
             const sourceText = toy.source_material_name || (toy.wave_number ? `Wave: ${toy.wave_number}` : '');
             document.getElementById('displayToyMeta2').textContent = sourceText;
 
-            if(iconEl) iconEl.className = 'fas fa-robot text-dark fa-2x';
+            // Billede
+            if (toy.image_path) {
+                imgEl.src = toy.image_path;
+                imgEl.classList.remove('d-none');
+                if(iconEl) iconEl.classList.add('d-none');
+            } else {
+                imgEl.classList.add('d-none');
+                imgEl.src = '';
+                if(iconEl) {
+                    iconEl.classList.remove('d-none');
+                    iconEl.className = 'fas fa-robot text-dark fa-2x';
+                }
+            }
         } else {
+            // Reset
             document.getElementById('displayToyMeta1').textContent = '';
             document.getElementById('displayToyMeta2').textContent = '';
-            if(iconEl) iconEl.className = 'fas fa-box-open text-muted fa-2x';
+            imgEl.classList.add('d-none');
+            imgEl.src = '';
+            if(iconEl) {
+                iconEl.classList.remove('d-none');
+                iconEl.className = 'fas fa-box-open text-muted fa-2x';
+            }
         }
     };
 
@@ -74,14 +91,20 @@ App.initDependentDropdowns = function () {
             const div = document.createElement('div');
             div.className = 'toy-result-item';
             
-            // Byg meta liste (År, Type, Kilde)
+            // Meta data liste
             let metaParts = [];
             if(toy.release_year) metaParts.push(toy.release_year);
             if(toy.type_name) metaParts.push(toy.type_name);
             if(toy.source_material_name) metaParts.push(toy.source_material_name);
 
+            // Billede vs Ikon logik (NY)
+            let imgHtml = '<i class="fas fa-robot text-muted"></i>';
+            if (toy.image_path) {
+                imgHtml = `<img src="${toy.image_path}" class="toy-thumb-img" alt="${toy.name}">`;
+            }
+
             div.innerHTML = `
-                <div class="toy-thumb-container"><i class="fas fa-robot text-muted"></i></div>
+                <div class="toy-thumb-container">${imgHtml}</div>
                 <div class="flex-grow-1">
                     <div class="toy-title">${toy.name}</div>
                     <div class="text-muted small">${metaParts.join(' &bull; ')}</div>
@@ -109,6 +132,11 @@ App.initDependentDropdowns = function () {
             document.getElementById('displayToyMeta1').textContent = '';
             document.getElementById('displayToyMeta2').textContent = '';
             widgetInput.value = '';
+            // Reset ikon
+            const iconEl = document.getElementById('displayToyImgIcon');
+            const imgEl = document.getElementById('displayToyImg');
+            if(imgEl) { imgEl.classList.add('d-none'); imgEl.src = ''; }
+            if(iconEl) { iconEl.classList.remove('d-none'); iconEl.className = 'fas fa-box-open text-muted fa-2x'; }
         }
     };
 
@@ -117,10 +145,6 @@ App.initDependentDropdowns = function () {
         data.forEach((item) => { options += `<option value="${item.id}">${item.name}</option>`; });
         el.innerHTML = options;
         el.disabled = false;
-    };
-
-    const updateCount = () => {
-        if (countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} items`;
     };
 
     // --- CORE LOGIC (Child Items) ---
@@ -148,7 +172,6 @@ App.initDependentDropdowns = function () {
 
         const index = rowCount++;
         const clone = template.content.cloneNode(true);
-        // Unikke navne/IDs
         clone.querySelectorAll('[name*="INDEX"]').forEach((el) => { el.name = el.name.replace('INDEX', index); if (el.id) el.id = el.id.replace('INDEX', index); });
         clone.querySelectorAll('[for*="INDEX"]').forEach((el) => { el.setAttribute('for', el.getAttribute('for').replace('INDEX', index)); });
 
@@ -207,12 +230,12 @@ App.initDependentDropdowns = function () {
             clone.querySelector('.remove-row-btn').onclick = function (e) {
                 e.preventDefault();
                 e.target.closest('.child-item-row').remove();
-                updateCount();
+                if(countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} items`;
             };
         }
 
         container.appendChild(clone);
-        updateCount();
+        if(countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} items`;
         if (!data) container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
@@ -306,22 +329,16 @@ App.initDependentDropdowns = function () {
     if (lineSelect) lineSelect.addEventListener('change', (e) => loadToys(e.target.value));
     if (btnAddItem) btnAddItem.addEventListener('click', () => addItemRow());
 
-    // --- FIX: INITIALISER WIDGET I EDIT MODE (VIGTIG NY DEL) ---
+    // --- FIX: INITIALISER WIDGET I EDIT MODE ---
     if (widgetWrapper) {
-        // 1. Indlæs søgelisten med det samme (sparer et API kald hvis vi vil søge igen)
         if (widgetWrapper.dataset.allToys) {
-            try {
-                currentMasterToysList = JSON.parse(widgetWrapper.dataset.allToys);
-            } catch (e) { console.error('Error parsing all toys', e); }
+            try { currentMasterToysList = JSON.parse(widgetWrapper.dataset.allToys); } catch (e) { console.error('Error parsing all toys', e); }
         }
-
-        // 2. Vis det valgte toy visuelt
         if (widgetWrapper.dataset.selectedToy) {
             try {
                 const selectedToy = JSON.parse(widgetWrapper.dataset.selectedToy);
                 if (selectedToy) {
                     updateWidgetDisplay(selectedToy);
-                    // Sæt titlen korrekt (overskriv "Select Line first...")
                     if(widgetCard) widgetCard.classList.remove('disabled');
                 }
             } catch (e) { console.error('Error parsing selected toy', e); }

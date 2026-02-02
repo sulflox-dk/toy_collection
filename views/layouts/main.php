@@ -14,6 +14,7 @@ use CollectionApp\Kernel\Config;
     <link href="<?= Config::get('base_url') ?>assets/css/core.css?v=<?= time() ?>" rel="stylesheet">
     <link href="<?= Config::get('base_url') ?>assets/css/dashboard.css?v=<?= time() ?>" rel="stylesheet">
     <link href="<?= Config::get('base_url') ?>assets/css/collection.css?v=<?= time() ?>" rel="stylesheet">
+    <link href="<?= Config::get('base_url') ?>assets/css/media_library.css?v=<?= time() ?>" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
@@ -37,6 +38,25 @@ use CollectionApp\Kernel\Config;
             </li>
             <li class="nav-item">
               <a class="nav-link" href="<?= Config::get('base_url') ?>?module=catalog&action=index">Catalog</a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                    Data
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=Universe&controller=Universe&action=index">Universes</a></li>
+                    <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=Universe&controller=Subject&action=index">Subjects</a></li>
+                    <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=Universe&controller=EntertainmentSource&action=index">Entertainment Sources</a></li>
+                </ul>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                    Media
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=media&controller=MediaLibrary&action=index">Media Library</a></li>
+                    <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=media&controller=MediaTags&action=index">Media Tags</a></li>
+                </ul>
             </li>
           </ul>
           <ul class="navbar-nav ms-auto">
@@ -71,6 +91,19 @@ use CollectionApp\Kernel\Config;
         </div>
       </div>
     </div>
+
+    <div class="toast-container position-fixed top-0 end-0 p-3 mt-5" style="z-index: 2000">
+        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastBody">
+                    Action successful!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    </body>
 
     <script>
         const SITE_URL = "<?= Config::get('base_url') ?>";

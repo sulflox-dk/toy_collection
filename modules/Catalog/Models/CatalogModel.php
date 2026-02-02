@@ -33,10 +33,15 @@ class CatalogModel {
             SELECT mt.*, 
                    pt.type_name,
                    es.name as source_material_name,
-                   es.type as source_material_type
+                   es.type as source_material_type,
+                   mf.file_path as image_path  -- NYT: Hent filstien
             FROM master_toys mt 
             LEFT JOIN product_types pt ON mt.product_type_id = pt.id
             LEFT JOIN entertainment_sources es ON mt.entertainment_source_id = es.id
+            -- NYT: Join for at hente MAIN image
+            LEFT JOIN master_toy_media_map mtmm ON mt.id = mtmm.master_toy_id AND mtmm.is_main = 1
+            LEFT JOIN media_files mf ON mtmm.media_file_id = mf.id
+            
             WHERE mt.line_id = :lid 
             ORDER BY mt.name ASC
         ", ['lid' => $lineId])->fetchAll();

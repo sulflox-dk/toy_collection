@@ -1,0 +1,81 @@
+/* CONTAINER & TOOLBAR */
+.media-toolbar {
+    background: #fff;
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* GRID LAYOUT */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+}
+
+/* IMAGE CARD */
+.media-item {
+    position: relative;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+    aspect-ratio: 1 / 1; /* Kvadratisk */
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.media-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-color: #adb5bd;
+}
+
+.media-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Sikrer pæne thumbnails */
+    display: block;
+}
+
+/* SELECTION CHECKBOX (WordPress Style) */
+.media-select-checkbox {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    z-index: 10;
+    display: none; /* Skjult som standard */
+    cursor: pointer;
+}
+
+/* Når Bulk Select er aktiv */
+.bulk-select-active .media-select-checkbox {
+    display: block;
+}
+
+/* Når et billede er valgt */
+.media-item.selected {
+    border: 3px solid #0d6efd; /* Bootstrap primary blue */
+}
+.media-item.selected .media-select-checkbox {
+    display: block;
+}
+
+/* PAGINATION */
+.pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
