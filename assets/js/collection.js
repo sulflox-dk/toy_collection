@@ -9,34 +9,122 @@ App.initDependentDropdowns = function () {
 	const universeSelect = document.getElementById('selectUniverse');
 	const manufacturerSelect = document.getElementById('selectManufacturer');
 	const lineSelect = document.getElementById('selectLine');
-	const toySelect = document.getElementById('selectMasterToy');
+    
+    // NYT: Widget elementer i stedet for selectMasterToy
+    const widgetInput = document.getElementById('inputMasterToyId');
+    const widgetCard = document.getElementById('masterToyDisplayCard');
+    const widgetOverlay = document.getElementById('masterToyOverlay');
+    const widgetSearch = document.getElementById('inputToySearch');
+    const widgetList = document.getElementById('toyResultsList');
 
 	const btnAddItem = document.getElementById('btnAddItemRow');
 	const container = document.getElementById('childItemsContainer');
 	const template = document.getElementById('childRowTemplate');
 	const countBadge = document.getElementById('itemCountBadge');
 
-	let availableParts = [];
+	let availableMasterToyItems = []; // Var før "parts"
+    let currentMasterToysList = [];   // NYT: Liste til søge-widgetten
 	let rowCount = 0;
 
-	// Hent data fra containeren (Edit mode data og dele)
+	// Hent data fra containeren (Edit mode data og items)
 	if (container) {
 		try {
-			if (container.dataset.parts) {
-				availableParts = JSON.parse(container.dataset.parts);
+			if (container.dataset.masterToyItems) {
+				availableMasterToyItems = JSON.parse(container.dataset.masterToyItems);
 			}
 		} catch (e) {
-			console.error('JSON parse error in parts', e);
+			console.error('JSON parse error in master items', e);
 		}
 	}
 
 	// --- HELPERS ---
+    
+    // Opdaterer display kortet med det valgte toy (Widget Logik)
+    const updateWidgetDisplay = (toy) => {
+        const iconEl = document.getElementById('displayToyImgIcon');
+        const imgEl = document.getElementById('displayToyImg');
+
+        document.getElementById('displayToyTitle').textContent = toy ? toy.name : 'Select Toy...';
+        
+        if (toy) {
+            // Linie 2: Year + Type
+            const line2 = [toy.release_year, toy.type_name].filter(Boolean).join(' - ');
+            document.getElementById('displayToyMeta1').textContent = line2;
+            
+            // Linie 3: Source Material (Filmen/Serien) - Fallback til Wave nummer
+            // NYT HER: Vi bruger source_material_name fra databasen
+            const sourceText = toy.source_material_name || (toy.wave_number ? `Wave: ${toy.wave_number}` : '');
+            document.getElementById('displayToyMeta2').textContent = sourceText;
+
+            // Ikon styring
+            if(iconEl) iconEl.className = 'fas fa-robot text-dark fa-2x';
+        } else {
+            document.getElementById('displayToyMeta1').textContent = '';
+            document.getElementById('displayToyMeta2').textContent = '';
+            if(iconEl) iconEl.className = 'fas fa-box-open text-muted fa-2x';
+        }
+    };
+
+    // Genererer HTML listen i overlayet baseret på søgning
+    const renderWidgetResults = (filterText = '') => {
+        if(!widgetList) return;
+        widgetList.innerHTML = '';
+        const term = filterText.toLowerCase();
+        
+        // Filtrer listen
+        const filtered = currentMasterToysList.filter(t => t.name.toLowerCase().includes(term));
+
+        if (filtered.length === 0) {
+            widgetList.innerHTML = '<div class="p-3 text-center text-muted small">No toys found matching "' + filterText + '"</div>';
+            return;
+        }
+
+        filtered.forEach(toy => {
+            const div = document.createElement('div');
+            div.className = 'toy-result-item';
+            div.innerHTML = `
+                <div class="toy-thumb-container">
+                    <i class="fas fa-robot text-muted"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="toy-title">${toy.name}</div>
+                    <div class="text-muted small">
+                        ${[toy.release_year, toy.type_name].filter(Boolean).join(' ? ')}
+                    </div>
+                </div>
+            `;
+            
+            // CLICK EVENT: Vælg toy fra listen
+            div.addEventListener('click', () => {
+                widgetInput.value = toy.id;
+                updateWidgetDisplay(toy);           // Opdater kortet
+                widgetOverlay.classList.remove('show'); // Luk overlay
+                loadMasterToyItems(toy.id);         // Hent items til bunden (den gamle 'change' event)
+            });
+            
+            widgetList.appendChild(div);
+        });
+    };
+
+    // Reset funktion til dropdowns
 	const resetSelect = (el, msg) => {
 		if (el) {
 			el.innerHTML = `<option value="">${msg}</option>`;
 			el.disabled = true;
 		}
 	};
+    
+    // Helper til at nulstille widgetten når Man/Line skifter
+    const resetWidget = (msg) => {
+        if(widgetCard) {
+            widgetCard.classList.add('disabled');
+            document.getElementById('displayToyTitle').textContent = msg;
+            document.getElementById('displayToyMeta1').textContent = '';
+            document.getElementById('displayToyMeta2').textContent = '';
+            widgetInput.value = '';
+        }
+    };
+
 	const populateSelect = (el, data, defaultMsg) => {
 		let options = `<option value="">${defaultMsg}</option>`;
 		data.forEach((item) => {
@@ -52,24 +140,25 @@ App.initDependentDropdowns = function () {
 	};
 
 	// --- CORE ITEM LOGIC ---
+	
+	// Opdater dropdowns i ALLE eksisterende rækker
 	const refreshExistingRows = () => {
-		// Opdater dropdowns i ALLE rækker hvis parent toy skifter
-		const selects = container.querySelectorAll('.item-part-select');
+		const selects = container.querySelectorAll('.master-toy-item-select');
 		selects.forEach((select) => {
 			const currentVal = select.value;
 			let options =
-				availableParts.length > 0
+				availableMasterToyItems.length > 0
 					? '<option value="">Select Item...</option>'
-					: '<option value="">Unknown Parts (Select Toy above first)</option>';
+					: '<option value="">Unknown Items (Select Toy above first)</option>';
 
-			if (availableParts.length > 0) {
-				availableParts.forEach((part) => {
-					options += `<option value="${part.id}">${part.name} (${part.type})</option>`;
+			if (availableMasterToyItems.length > 0) {
+				availableMasterToyItems.forEach((mti) => {
+					options += `<option value="${mti.id}">${mti.name} (${mti.type})</option>`;
 				});
 			}
 			select.innerHTML = options;
 			// Prøv at bevare værdien hvis den stadig findes
-			if (currentVal && availableParts.some((p) => p.id == currentVal)) {
+			if (currentVal && availableMasterToyItems.some((p) => p.id == currentVal)) {
 				select.value = currentVal;
 			}
 		});
@@ -77,13 +166,13 @@ App.initDependentDropdowns = function () {
 
 	// Den "kloge" add funktion der håndterer både nye og eksisterende
 	const addItemRow = async (data = null) => {
-		// Hvis vi ikke har hentet parts endnu, gør det nu
-		if (availableParts.length === 0 && toySelect.value) {
+		// Hvis vi ikke har hentet master items endnu, men har valgt en toy, gør det nu
+		if (availableMasterToyItems.length === 0 && widgetInput.value) {
 			try {
 				const res = await fetch(
-					`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${toySelect.value}`,
+					`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${widgetInput.value}`,
 				);
-				availableParts = await res.json();
+				availableMasterToyItems = await res.json();
 			} catch (e) {
 				console.error(e);
 			}
@@ -91,7 +180,7 @@ App.initDependentDropdowns = function () {
 
 		const index = rowCount++;
 		const clone = template.content.cloneNode(true);
-		const row = clone.querySelector('.child-item-row'); // Gem reference til rækken
+		const row = clone.querySelector('.child-item-row');
 
 		// 1. Unikke navne/IDs
 		clone.querySelectorAll('[name*="INDEX"]').forEach((el) => {
@@ -102,29 +191,29 @@ App.initDependentDropdowns = function () {
 			el.setAttribute('for', el.getAttribute('for').replace('INDEX', index));
 		});
 
-		// 2. Setup Dropdown & LIVE Update logik (NYT HER)
-		const partSelect = clone.querySelector('.item-part-select');
+		// 2. Setup Dropdown & LIVE Update logik
+		const masterToyItemSelect = clone.querySelector('.master-toy-item-select');
 		const titleSpan = clone.querySelector('.item-display-name');
-		const typeSpan = clone.querySelector('.item-type-display'); // Den nye span
+		const typeSpan = clone.querySelector('.item-type-display'); 
 
-		if (availableParts.length > 0) {
+		if (availableMasterToyItems.length > 0) {
 			let options = '<option value="">Select Item...</option>';
-			availableParts.forEach((part) => {
-				options += `<option value="${part.id}">${part.name} (${part.type})</option>`;
+			availableMasterToyItems.forEach((mti) => {
+				options += `<option value="${mti.id}">${mti.name} (${mti.type})</option>`;
 			});
-			partSelect.innerHTML = options;
+			masterToyItemSelect.innerHTML = options;
 		} else {
-			partSelect.innerHTML =
-				'<option value="">Unknown Parts (Select Toy above first)</option>';
+			masterToyItemSelect.innerHTML =
+				'<option value="">Unknown Items (Select Toy above first)</option>';
 		}
 
 		// LYTTER: Opdater headeren når man vælger i dropdownen
-		partSelect.addEventListener('change', function () {
+		masterToyItemSelect.addEventListener('change', function () {
 			const selectedId = this.value;
-			const part = availableParts.find((p) => p.id == selectedId);
-			if (part) {
-				titleSpan.textContent = part.name;
-				if (typeSpan) typeSpan.textContent = ` (${part.type})`;
+			const mti = availableMasterToyItems.find((p) => p.id == selectedId);
+			if (mti) {
+				titleSpan.textContent = mti.name;
+				if (typeSpan) typeSpan.textContent = ` (${mti.type})`;
 			} else {
 				titleSpan.textContent = 'New Item';
 				if (typeSpan) typeSpan.textContent = '';
@@ -133,44 +222,35 @@ App.initDependentDropdowns = function () {
 
 		// 3. Håndter Data (Edit Mode)
 		if (data) {
-            // Gem ID til sletning
-            const idInput = document.createElement('input');
-            idInput.type = 'hidden';
-            idInput.name = `items[${index}][id]`;
-            idInput.value = data.id;
-            idInput.className = 'item-db-id'; // Vigtig klasse til sletning
-            row.prepend(idInput);
+			// Gem ID til sletning
+			const idInput = document.createElement('input');
+			idInput.type = 'hidden';
+			idInput.name = `items[${index}][id]`;
+			idInput.value = data.id;
+			idInput.className = 'item-db-id'; 
+			row.prepend(idInput);
 
 			// Udfyld overskrift og type fra databasen
-			titleSpan.textContent = data.part_name || 'Item';
-			if (data.part_type && typeSpan) {
-				typeSpan.textContent = ` (${data.part_type})`;
+			titleSpan.textContent = data.master_toy_item_name || 'Item';
+			if (data.master_toy_item_type && typeSpan) {
+				typeSpan.textContent = ` (${data.master_toy_item_type})`;
 			}
 
-			if (partSelect) partSelect.value = data.master_toy_item_id;
+			if (masterToyItemSelect) masterToyItemSelect.value = data.master_toy_item_id;
 			if (data.is_loose == 1)
 				clone.querySelector('.input-loose').checked = true;
 			else clone.querySelector('.input-loose').checked = false;
 
 			clone.querySelector('.input-condition').value = data.condition || '';
-			clone.querySelector('.input-repro').value =
-				data.is_reproduction || '';
-			clone.querySelector('[name*="[purchase_date]"]').value =
-				data.purchase_date || '';
-			clone.querySelector('[name*="[purchase_price]"]').value =
-				data.purchase_price || '';
-			clone.querySelector('[name*="[source_id]"]').value =
-				data.source_id || '';
-			clone.querySelector('[name*="[acquisition_status]"]').value =
-				data.acquisition_status || '';
-			clone.querySelector('[name*="[expected_arrival_date]"]').value =
-				data.expected_arrival_date || '';
-			clone.querySelector('[name*="[personal_item_id]"]').value =
-				data.personal_item_id || '';
-			clone.querySelector('[name*="[storage_id]"]').value =
-				data.storage_id || '';
-			clone.querySelector('[name*="[user_comments]"]').value =
-				data.user_comments || '';
+			clone.querySelector('.input-repro').value = data.is_reproduction || '';
+			clone.querySelector('[name*="[purchase_date]"]').value = data.purchase_date || '';
+			clone.querySelector('[name*="[purchase_price]"]').value = data.purchase_price || '';
+			clone.querySelector('[name*="[source_id]"]').value = data.source_id || '';
+			clone.querySelector('[name*="[acquisition_status]"]').value = data.acquisition_status || '';
+			clone.querySelector('[name*="[expected_arrival_date]"]').value = data.expected_arrival_date || '';
+			clone.querySelector('[name*="[personal_item_id]"]').value = data.personal_item_id || '';
+			clone.querySelector('[name*="[storage_id]"]').value = data.storage_id || '';
+			clone.querySelector('[name*="[user_comments]"]').value = data.user_comments || '';
 
 			// SLET LOGIK (Eksisterende items)
 			const deleteBtn = clone.querySelector('.remove-row-btn');
@@ -213,12 +293,45 @@ App.initDependentDropdowns = function () {
 		}
 	}
 
+    // --- WIDGET EVENT LISTENERS ---
+    if(widgetCard) {
+		widgetCard.addEventListener('click', function() {
+			if (this.classList.contains('disabled')) return;
+			
+			// Toggle overlay
+			const isMsgOpen = widgetOverlay.classList.contains('show');
+			if (isMsgOpen) {
+				widgetOverlay.classList.remove('show');
+			} else {
+				widgetOverlay.classList.add('show');
+				widgetSearch.value = ''; // Reset søgning
+				widgetSearch.focus();
+				renderWidgetResults(); // Vis alle
+			}
+		});
+	}
+
+	if(widgetSearch) {
+		widgetSearch.addEventListener('keyup', (e) => {
+			renderWidgetResults(e.target.value);
+		});
+	}
+
+	// Luk overlay hvis man klikker udenfor
+	document.addEventListener('click', function(event) {
+		if (widgetOverlay && widgetOverlay.classList.contains('show')) {
+			if (!widgetCard.contains(event.target) && !widgetOverlay.contains(event.target)) {
+				widgetOverlay.classList.remove('show');
+			}
+		}
+	});
+
 	// --- DROPDOWNS (Universe/Line/Etc) ---
+	
 	// Hjælpefunktion til auto-valg
 	const autoSelectIfSingle = (element, data) => {
 		if (data.length === 1) {
 			element.value = data[0].id;
-			// Vigtigt: Fortæl systemet at værdien er ændret, så den næste dropdown loader
 			element.dispatchEvent(new Event('change'));
 		}
 	};
@@ -228,7 +341,10 @@ App.initDependentDropdowns = function () {
 		manufacturerSelect.innerHTML = '<option>Loading...</option>';
 		manufacturerSelect.disabled = true;
 		resetSelect(lineSelect, 'Select Manufacturer first...');
-		resetSelect(toySelect, 'Select Line first...');
+        
+        // RETTET: Reset widget i stedet for dropdown
+		resetWidget('Select Line first...');
+
 		if (!universeId) {
 			resetSelect(manufacturerSelect, 'Select Universe first...');
 			return;
@@ -240,7 +356,6 @@ App.initDependentDropdowns = function () {
 			.then((res) => res.json())
 			.then((data) => {
 				populateSelect(manufacturerSelect, data, 'Select Manufacturer...');
-				// NYT: Auto-vælg hvis der kun er én manufacturer
 				autoSelectIfSingle(manufacturerSelect, data);
 			});
 	};
@@ -248,7 +363,9 @@ App.initDependentDropdowns = function () {
 	const loadLines = (manId) => {
 		lineSelect.innerHTML = '<option>Loading...</option>';
 		lineSelect.disabled = true;
-		resetSelect(toySelect, 'Select Line first...');
+        // RETTET: Reset widget i stedet for dropdown
+		resetWidget('Select Line first...');
+
 		const uniId = universeSelect.value;
 		if (!manId) return;
 
@@ -258,30 +375,39 @@ App.initDependentDropdowns = function () {
 			.then((res) => res.json())
 			.then((data) => {
 				populateSelect(lineSelect, data, 'Select Line...');
-				// NYT: Auto-vælg hvis der kun er én line
 				autoSelectIfSingle(lineSelect, data);
 			});
 	};
 
+    // RETTET: Den nye loadToys funktion der aktiverer widgetten
 	const loadToys = (lineId) => {
-		toySelect.innerHTML = '<option>Loading...</option>';
-		toySelect.disabled = true;
-		if (!lineId) return;
+		// Reset widget state
+		widgetInput.value = '';
+        currentMasterToysList = [];
+		if (widgetCard) widgetCard.classList.add('disabled');
+        document.getElementById('displayToyTitle').textContent = 'Loading...';
+		
+		if (!lineId) {
+            document.getElementById('displayToyTitle').textContent = 'Select Line first...';
+			return;
+		}
 
 		fetch(
 			`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toys&line_id=${lineId}`,
 		)
 			.then((res) => res.json())
 			.then((data) => {
-				populateSelect(toySelect, data, 'Select Toy / Set...');
-				// (Valgfrit) Vi kan også gøre det her, men ofte vil man gerne se listen af toys
-				// autoSelectIfSingle(toySelect, data); 
+                // Gem data til søgning
+                currentMasterToysList = data;
+                
+                // Aktiver kortet
+                if (widgetCard) widgetCard.classList.remove('disabled');
+				document.getElementById('displayToyTitle').textContent = 'Select Toy / Set...';
 			});
 	};
 
-	const loadParts = (toyId) => {
-		// Hvis vi skifter toy, henter vi nye dele
-		availableParts = [];
+	const loadMasterToyItems = (toyId) => {
+		availableMasterToyItems = [];
 		if (!toyId) {
 			refreshExistingRows();
 			return;
@@ -291,7 +417,7 @@ App.initDependentDropdowns = function () {
 		)
 			.then((res) => res.json())
 			.then((data) => {
-				availableParts = data;
+				availableMasterToyItems = data;
 				refreshExistingRows();
 			});
 	};
@@ -301,7 +427,7 @@ App.initDependentDropdowns = function () {
 		universeSelect.addEventListener('change', (e) =>
 			loadManufacturers(e.target.value),
 		);
-		// Edit mode fix: Kun load hvis listen er tom
+		// Edit mode fix
 		if (
 			universeSelect.value &&
 			manufacturerSelect &&
@@ -316,11 +442,12 @@ App.initDependentDropdowns = function () {
 		);
 	if (lineSelect)
 		lineSelect.addEventListener('change', (e) => loadToys(e.target.value));
-	if (toySelect)
-		toySelect.addEventListener('change', (e) => loadParts(e.target.value));
+    
+    // RETTET: Vi har fjernet toySelect listeneren, da loadMasterToyItems nu kaldes når man klikker i widgetten
+
 	if (btnAddItem) btnAddItem.addEventListener('click', () => addItemRow());
 
-	// Ajax submit
+	// Ajax submit (denne del er uændret fra før)
 	const form = document.getElementById('addToyForm');
 	if (form) {
 		form.addEventListener('submit', function (e) {
@@ -341,49 +468,46 @@ App.initDependentDropdowns = function () {
 			submitBtn.disabled = true;
 
 			fetch(form.action, { method: 'POST', body: formData })
-                .then((response) => {
-                    // Tjek om serveren svarer med JSON (Update) eller HTML (Create)
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.indexOf("application/json") !== -1) {
-                        return response.json().then(data => {
-                            if (data.success) {
-                                // Ved update: Genindlæs siden for at se ændringer på dashboardet
-                                window.location.reload();
-                            } else {
-                                alert('Error saving: ' + (data.error || 'Unknown error'));
-                                submitBtn.disabled = false;
-                                submitBtn.innerHTML = originalBtnText;
-                            }
-                        });
-                    } else {
-                        // Ved create: Vi får HTML tilbage (Media Step), så vis det i modalen
-                        return response.text().then(html => {
-                            const modalContent = form.closest('.modal-content');
-                            if (modalContent) {
-                                modalContent.innerHTML = html;
-                                if (typeof App.initMediaUploads === 'function')
-                                    App.initMediaUploads();
-                            }
-                        });
-                    }
-                })
-                .catch((err) => {
-                    console.error(err);
-                    alert('An error occurred while saving.');
-                    submitBtn.innerHTML = originalBtnText;
-                    submitBtn.disabled = false;
-                });
+				.then((response) => {
+					const contentType = response.headers.get("content-type");
+					if (contentType && contentType.indexOf("application/json") !== -1) {
+						return response.json().then(data => {
+							if (data.success) {
+								window.location.reload();
+							} else {
+								alert('Error saving: ' + (data.error || 'Unknown error'));
+								submitBtn.disabled = false;
+								submitBtn.innerHTML = originalBtnText;
+							}
+						});
+					} else {
+						return response.text().then(html => {
+							const modalContent = form.closest('.modal-content');
+							if (modalContent) {
+								modalContent.innerHTML = html;
+								if (typeof App.initMediaUploads === 'function')
+									App.initMediaUploads();
+							}
+						});
+					}
+				})
+				.catch((err) => {
+					alert('An error occurred while saving.');
+					submitBtn.innerHTML = originalBtnText;
+					submitBtn.disabled = false;
+				});
 		});
 	}
 };
 
-// --- DEL 2: MEDIA UPLOAD LOGIK (Trin 3 - Add/Manage Photos) ---
+// --- DEL 2: MEDIA UPLOAD LOGIK (Behold denne som den er) ---
 App.initMediaUploads = function () {
-	console.log('Initializing Media Uploader...');
+	// ... (Resten af koden her er uændret og kan beholdes, eller kopieret fra din tidligere version) ...
+    // FOR FULDSTÆNDIGHEDENS SKYLD HAR JEG KOPIERET DET HELE MED HERUNDER:
+    console.log('Initializing Media Uploader...');
 
 	const containerEl = document.getElementById('media-upload-container');
 
-	// 1. HELPERS
 	const buildTagPills = (activeTags) => {
 		if (!window.availableMediaTags) return '';
 		return window.availableMediaTags

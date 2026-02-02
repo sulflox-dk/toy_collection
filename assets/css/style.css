@@ -379,3 +379,138 @@ h5,
 .media-preview-row .flex-grow-1 {
 	position: relative;
 }
+
+/* =========================================
+   CUSTOM TOY SELECTOR WIDGET
+   ========================================= */
+
+.toy-selector-wrapper {
+    position: relative; /* Vigtig for at overlayet placeres rigtigt */
+}
+
+/* 1. Det synlige kort (når lukket) */
+.toy-display-card {
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 100px;
+}
+
+.toy-display-card:hover {
+    border-color: #adb5bd;
+    background-color: #fcfcfc;
+}
+
+.toy-display-card.disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Billedet til venstre */
+.toy-thumb-container {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    border: 1px solid #eee;
+}
+
+.toy-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Sikrer at hele billedet ses */
+}
+
+/* Tekstområdet til højre */
+.toy-info-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.toy-title {
+    font-weight: bold;
+    font-size: 1rem;
+    color: #212529;
+    margin-bottom: 2px;
+}
+
+.toy-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+/* 2. Overlayet (Søgemenuen) */
+.toy-search-overlay {
+    position: absolute;
+    top: 100%; /* Lige under kortet */
+    left: 0;
+    right: 0;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-top: none; /* Flukter med kortet */
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: none; /* Skjult som standard */
+    max-height: 400px; /* Max højde */
+    flex-direction: column;
+}
+
+.toy-search-overlay.show {
+    display: flex;
+}
+
+.toy-search-header {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.toy-results-list {
+    overflow-y: auto; /* Scrollbar hvis listen er lang */
+    flex-grow: 1;
+    max-height: 350px;
+}
+
+/* Resultat rækkerne i listen */
+.toy-result-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #f1f1f1;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.toy-result-item:last-child {
+    border-bottom: none;
+}
+
+.toy-result-item:hover {
+    background-color: #f2f2f2;
+}
+
+.toy-result-item .toy-thumb-container {
+    width: 50px; /* Mindre i listen */
+    height: 50px;
+    margin-right: 12px;
+}
+
+.toy-result-item .toy-title {
+    font-size: 0.9rem;
+}

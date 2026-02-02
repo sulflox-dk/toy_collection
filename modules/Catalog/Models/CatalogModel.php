@@ -29,7 +29,17 @@ class CatalogModel {
     }
 
     public function getMasterToysByLine(int $lineId) {
-        return $this->db->query("SELECT * FROM master_toys WHERE line_id = :lid ORDER BY name ASC", ['lid' => $lineId])->fetchAll();
+        return $this->db->query("
+            SELECT mt.*, 
+                   pt.type_name,
+                   es.name as source_material_name,
+                   es.type as source_material_type
+            FROM master_toys mt 
+            LEFT JOIN product_types pt ON mt.product_type_id = pt.id
+            LEFT JOIN entertainment_sources es ON mt.entertainment_source_id = es.id
+            WHERE mt.line_id = :lid 
+            ORDER BY mt.name ASC
+        ", ['lid' => $lineId])->fetchAll();
     }
 
     public function getSources() {

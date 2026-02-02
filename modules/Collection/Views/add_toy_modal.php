@@ -4,9 +4,9 @@ $isEdit = isset($mode) && $mode === 'edit';
 $action = $isEdit ? 'update' : 'create';
 $toyData = $toy ?? []; // Tomt array hvis vi opretter ny
 
-// Forbered data til JS så vi kan bruge det i templaten
+// 1. Forbered data til JS - RETTET: Nu hedder det jsonMasterToyItems
 $jsonItems = json_encode($childItems ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
-$jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
+$jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 
 <div class="modal-header bg-dark text-white">
@@ -26,7 +26,8 @@ $jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
         <div class="card form-section-card">
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    
+                    <div class="col-md-3">
                         <label class="form-label small text-muted">Universe</label>
                         <select class="form-select" name="universe_id" id="selectUniverse" required>
                             <option value="">Select...</option>
@@ -38,7 +39,7 @@ $jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                         </select>
                     </div>
 
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <label class="form-label small text-muted">Manufacturer</label>
                         <select class="form-select" name="manufacturer_id" id="selectManufacturer" <?= $isEdit ? '' : 'disabled' ?> required>
                             <?php if($isEdit): ?>
@@ -46,7 +47,7 @@ $jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                                     <option value="<?= $m['id'] ?>" <?= $m['id'] == $toyData['manufacturer_id'] ? 'selected' : '' ?>><?= htmlspecialchars($m['name']) ?></option>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <option><?= isset($selected_universe) && $selected_universe ? 'Loading manufacturers...' : 'Select Universe first...' ?></option>
+                                <option><?= isset($selected_universe) && $selected_universe ? 'Loading...' : 'Select Universe first...' ?></option>
                             <?php endif; ?>
                         </select>
                     </div>
@@ -64,18 +65,41 @@ $jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                         </select>
                     </div>
 
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label class="form-label small text-muted">Toy (Master Definition)</label>
-                        <select class="form-select" name="master_toy_id" id="selectMasterToy" <?= $isEdit ? '' : 'disabled' ?> required>
-                            <?php if($isEdit): ?>
-                                <?php foreach($masterToys as $mt): ?>
-                                    <option value="<?= $mt['id'] ?>" <?= $mt['id'] == $toyData['master_toy_id'] ? 'selected' : '' ?>><?= htmlspecialchars($mt['name']) ?></option>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <option>Select Line first...</option>
-                            <?php endif; ?>
-                        </select>
-                    </div>
+                        
+                        <input type="hidden" name="master_toy_id" id="inputMasterToyId" value="<?= $toyData['master_toy_id'] ?? '' ?>" required>
+
+                        <div class="toy-selector-wrapper">
+                            
+                            <div id="masterToyDisplayCard" class="toy-display-card <?= $isEdit ? '' : 'disabled' ?>">
+                                <div class="toy-thumb-container">
+                                    <i class="fas fa-box-open text-muted fa-2x" id="displayToyImgIcon"></i>
+                                    <img src="" id="displayToyImg" class="toy-thumb-img d-none" alt="">
+                                </div>
+                                <div class="toy-info-container">
+                                    <div class="toy-title" id="displayToyTitle">Select Line first...</div>
+                                    <div class="toy-meta" id="displayToyMeta1"></div>
+                                    <div class="toy-meta" id="displayToyMeta2"></div>
+                                </div>
+                                <div class="ms-3 text-muted">
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                            </div>
+
+                            <div id="masterToyOverlay" class="toy-search-overlay">
+                                <div class="toy-search-header">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                        <input type="text" class="form-control border-start-0 ps-0" id="inputToySearch" placeholder="Search toy name (e.g. Han Solo)..." autocomplete="off">
+                                    </div>
+                                </div>
+                                <div id="toyResultsList" class="toy-results-list">
+                                    </div>
+                            </div>
+
+                        </div>
+                        </div>
                 </div>
             </div>
         </div>
@@ -176,7 +200,7 @@ $jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
         
         <div id="childItemsContainer" 
              data-items='<?= $jsonItems ?>' 
-             data-parts='<?= $jsonParts ?>'>
+             data-master-toy-items='<?= $jsonMasterToyItems ?>'>
         </div>
 
         <button type="button" class="btn btn-outline-dark w-100 py-2 border-dashed" id="btnAddItemRow">
@@ -206,13 +230,12 @@ $jsonParts = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                 <i class="far fa-trash-alt me-1"></i> Delete
             </button>
         </div>
-
         <div class="card-body">
             
             <div class="row g-3 mb-3 align-items-end">
                 <div class="col-md-5">
                     <label class="form-label small text-muted mb-1">Item</label>
-                    <select class="form-select form-select-sm item-part-select border-dark" name="items[INDEX][master_toy_item_id]" required>
+                    <select class="form-select form-select-sm master-toy-item-select border-dark" name="items[INDEX][master_toy_item_id]" required>
                         <option value="">Select Master Toy first...</option>
                     </select>
                 </div>

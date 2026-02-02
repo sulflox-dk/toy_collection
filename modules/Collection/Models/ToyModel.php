@@ -13,7 +13,6 @@ class ToyModel {
     // --- PARENT TOY CRUD ---
 
     public function getToyById(int $id) {
-        // Bemærk: Denne indeholder vores rettelse med l.universe_id
         return $this->db->query("
             SELECT ct.*, 
                    mt.line_id, l.manufacturer_id, l.universe_id, 
@@ -52,18 +51,18 @@ class ToyModel {
             user_comments = :user_comments
             WHERE id = :id";
         
-        $data['id'] = $id; // Sikr at ID er med i data-arrayet
+        $data['id'] = $id;
         return $this->db->query($sql, $data);
     }
 
     // --- CHILD ITEMS CRUD ---
 
     public function getChildItems(int $parentId) {
-        // Vi joine med master_toy_items og subjects for at få navnet (fx "Luke Skywalker")
+        // RETTET: Aliases �ndret fra part_name/type til master_toy_item_name/type
         return $this->db->query("
             SELECT cti.*, 
-                   s.name as part_name, 
-                   s.type as part_type
+                   s.name as master_toy_item_name, 
+                   s.type as master_toy_item_type
             FROM collection_toy_items cti
             LEFT JOIN master_toy_items mti ON cti.master_toy_item_id = mti.id
             LEFT JOIN subjects s ON mti.subject_id = s.id
@@ -164,40 +163,30 @@ class ToyModel {
         return [];
     }
 
-    /**
-     * Sletter et specifikt item og alle dets tilknyttede billeder
-     */
     public function deleteItem(int $itemId) {
-        // 1. Find alle medier tilknyttet dette specifikke item
         $mediaLinks = $this->db->query(
             "SELECT media_file_id FROM collection_toy_item_media_map WHERE collection_toy_item_id = :id", 
             ['id' => $itemId]
         )->fetchAll();
 
-        // 2. Loop igennem hvert billede og brug vores deleteMedia logik (sletter fil + links)
         if (!empty($mediaLinks)) {
             foreach ($mediaLinks as $link) {
                 $this->deleteMedia((int)$link['media_file_id']);
             }
         }
 
-        // 3. Nu hvor alle billeder er væk, sletter vi selve item rækken
         return $this->db->query("DELETE FROM collection_toy_items WHERE id = :id", ['id' => $itemId]);
     }
 
     public function deleteMedia(int $mediaId) {
-        // 1. Bed MediaModel om at slette selve filen og metadata først
         $mediaModel = new \CollectionApp\Modules\Media\Models\MediaModel();
         $success = $mediaModel->delete($mediaId);
 
-        // 2. Kun hvis sletningen af kilden lykkedes, fjerner vi relationerne i dette modul
         if ($success) {
             $this->db->query("DELETE FROM collection_toy_media_map WHERE media_file_id = :id", ['id' => $mediaId]);
             $this->db->query("DELETE FROM collection_toy_item_media_map WHERE media_file_id = :id", ['id' => $mediaId]);
             return true;
         }
-
-        // Hvis MediaModel returnerede false, lader vi relationerne bestå og melder fejl
         return false;
     }
 }
