@@ -122,7 +122,7 @@
                         <div class="col-6 pt-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="show_on_dashboard" id="edit_show">
-                                <label class="form-check-label">Show on Dashboard</label>
+                                <label class="form-check-label" for="edit_show">Show on Dashboard</label>
                             </div>
                         </div>
                     </div>

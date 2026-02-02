@@ -36,8 +36,13 @@ use CollectionApp\Kernel\Config;
             <li class="nav-item">
               <a class="nav-link" href="<?= Config::get('base_url') ?>?module=collection&action=index">My Collection</a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="<?= Config::get('base_url') ?>?module=catalog&action=index">Catalog</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Catalog</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=Catalog&controller=ProductType&action=index">Product Types</a></li>  
+                <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=Catalog&controller=ToyLine&action=index">Toy Lines</a></li>   
+                <li><a class="dropdown-item" href="<?= Config::get('base_url') ?>?module=Catalog&controller=Manufacturer&action=index">Manufacturers</a></li>
+                </ul>
             </li>
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
