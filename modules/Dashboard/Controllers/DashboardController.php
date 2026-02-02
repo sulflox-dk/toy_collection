@@ -28,7 +28,9 @@ class DashboardController extends Controller {
             'stats'      => $stats,
             'recentToys' => $recentToys,
             'scripts'    => [
-                'assets/js/collection.js',
+                'assets/js/collection-core.js',
+                'assets/js/collection-form.js',
+                'assets/js/collection-media.js',
                 'assets/js/dashboard.js'
             ]
         ];
