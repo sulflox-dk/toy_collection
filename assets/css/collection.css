@@ -45,6 +45,9 @@
     text-transform: uppercase; color: rgb(33, 37, 41); font-weight: bold;
     margin-bottom: 1rem; font-size: 0.85rem; letter-spacing: 1px;
 }
+.item-display-name {
+    color: rgb(33, 37, 41);
+}
 .form-section-card {
     background-color: #fff; border: none; border-radius: 0.5rem;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); margin-bottom: 1.5rem;
@@ -114,3 +117,26 @@
 .toy-result-item:hover { background-color: #f2f2f2; }
 .toy-result-item .toy-thumb-container { width: 50px; height: 50px; margin-right: 12px; }
 .toy-result-item .toy-title { font-size: 0.9rem; }
+
+
+/* HOVER ZOOM EFFECT */
+.media-hover-zoom {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 85vw;  /* Max 85% af skærmens bredde */
+    max-height: 85vh; /* Max 85% af skærmens højde */
+    z-index: 10000;   /* Skal ligge allerøverst (over modalen) */
+    border: 5px solid #fff;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    border-radius: 4px;
+    pointer-events: none; /* VIGTIGT: Musen ignorerer billedet */
+    object-fit: contain;
+    animation: zoomIn 0.15s ease-out;
+}
+
+@keyframes zoomIn {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}

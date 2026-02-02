@@ -132,6 +132,27 @@ App.initMediaUploads = function () {
                     saveMetadata(data.media_id, rowDiv);
                 }
             });
+
+        // --- Hover effekt på billedet ---
+        const imgEl = rowDiv.querySelector('.media-img-frame img');
+        if (imgEl) {
+            imgEl.style.cursor = 'zoom-in'; // Vis lup-ikon
+            
+            imgEl.addEventListener('mouseenter', function() {
+                // Opret det store billede
+                const bigImg = document.createElement('img');
+                bigImg.src = this.src;
+                bigImg.className = 'media-hover-zoom';
+                bigImg.id = 'active-hover-zoom';
+                document.body.appendChild(bigImg);
+            });
+
+            imgEl.addEventListener('mouseleave', function() {
+                // Fjern det store billede igen
+                const bigImg = document.getElementById('active-hover-zoom');
+                if (bigImg) bigImg.remove();
+            });
+        }
     };
 
     // 2. INITIALIZE

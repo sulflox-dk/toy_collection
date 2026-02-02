@@ -1,7 +1,7 @@
 /**
- * FORM & WIDGET LOGIC
+ * COLLECTION FORM
+ * Håndterer dropdowns, widget søgning og tilføjelse af parts
  */
-
 App.initDependentDropdowns = function () {
     console.log('Initializing Toy Form logic...');
 
@@ -11,6 +11,7 @@ App.initDependentDropdowns = function () {
     
     // WIDGET ELEMENTS
     const widgetInput = document.getElementById('inputMasterToyId');
+    const widgetWrapper = document.getElementById('masterToyWidgetWrapper'); // Wrapperen med data
     const widgetCard = document.getElementById('masterToyDisplayCard');
     const widgetOverlay = document.getElementById('masterToyOverlay');
     const widgetSearch = document.getElementById('inputToySearch');
@@ -26,22 +27,17 @@ App.initDependentDropdowns = function () {
     let rowCount = 0;
 
     // Hent data fra containeren (Edit mode data og items)
-    if (container) {
+    if (container && container.dataset.masterToyItems) {
         try {
-            if (container.dataset.masterToyItems) {
-                availableMasterToyItems = JSON.parse(container.dataset.masterToyItems);
-            }
-        } catch (e) {
-            console.error('JSON parse error in master items', e);
-        }
+            availableMasterToyItems = JSON.parse(container.dataset.masterToyItems);
+        } catch (e) { console.error('JSON parse error', e); }
     }
 
-    // --- WIDGET LOGIK ---
+    // --- WIDGET HELPERS ---
 
-    // Opdaterer display kortet med det valgte toy (Når kortet er LUKKET)
     const updateWidgetDisplay = (toy) => {
         const iconEl = document.getElementById('displayToyImgIcon');
-        // const imgEl = document.getElementById('displayToyImg'); // Forberedelse til billeder
+        const imgEl = document.getElementById('displayToyImg'); // Forberedelse til billeder
 
         document.getElementById('displayToyTitle').textContent = toy ? toy.name : 'Select Toy...';
         
@@ -62,13 +58,11 @@ App.initDependentDropdowns = function () {
         }
     };
 
-    // Genererer HTML listen i overlayet (Når kortet er ÅBENT)
     const renderWidgetResults = (filterText = '') => {
         if(!widgetList) return;
         widgetList.innerHTML = '';
         const term = filterText.toLowerCase();
         
-        // Filtrer listen
         const filtered = currentMasterToysList.filter(t => t.name.toLowerCase().includes(term));
 
         if (filtered.length === 0) {
@@ -80,22 +74,17 @@ App.initDependentDropdowns = function () {
             const div = document.createElement('div');
             div.className = 'toy-result-item';
             
-            // Vi bygger en liste af meta-data (År, Type, Kilde)
+            // Byg meta liste (År, Type, Kilde)
             let metaParts = [];
             if(toy.release_year) metaParts.push(toy.release_year);
             if(toy.type_name) metaParts.push(toy.type_name);
-            // Her tager vi kilden med (The Empire Strikes Back), hvis den findes
             if(toy.source_material_name) metaParts.push(toy.source_material_name);
 
             div.innerHTML = `
-                <div class="toy-thumb-container">
-                    <i class="fas fa-robot text-muted"></i>
-                </div>
+                <div class="toy-thumb-container"><i class="fas fa-robot text-muted"></i></div>
                 <div class="flex-grow-1">
                     <div class="toy-title">${toy.name}</div>
-                    <div class="text-muted small">
-                        ${metaParts.join(' &bull; ')}
-                    </div>
+                    <div class="text-muted small">${metaParts.join(' &bull; ')}</div>
                 </div>
             `;
             
@@ -105,16 +94,12 @@ App.initDependentDropdowns = function () {
                 widgetOverlay.classList.remove('show');
                 loadMasterToyItems(toy.id);
             });
-            
             widgetList.appendChild(div);
         });
     };
 
     const resetSelect = (el, msg) => {
-        if (el) {
-            el.innerHTML = `<option value="">${msg}</option>`;
-            el.disabled = true;
-        }
+        if (el) { el.innerHTML = `<option value="">${msg}</option>`; el.disabled = true; }
     };
     
     const resetWidget = (msg) => {
@@ -129,64 +114,43 @@ App.initDependentDropdowns = function () {
 
     const populateSelect = (el, data, defaultMsg) => {
         let options = `<option value="">${defaultMsg}</option>`;
-        data.forEach((item) => {
-            options += `<option value="${item.id}">${item.name}</option>`;
-        });
+        data.forEach((item) => { options += `<option value="${item.id}">${item.name}</option>`; });
         el.innerHTML = options;
         el.disabled = false;
     };
 
     const updateCount = () => {
-        const count = container.querySelectorAll('.child-item-row').length;
-        if (countBadge) countBadge.textContent = `${count} items`;
+        if (countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} items`;
     };
 
-    // --- CORE ITEM LOGIC (Child Items) ---
-    
+    // --- CORE LOGIC (Child Items) ---
+
     const refreshExistingRows = () => {
         const selects = container.querySelectorAll('.master-toy-item-select');
         selects.forEach((select) => {
             const currentVal = select.value;
-            let options =
-                availableMasterToyItems.length > 0
-                    ? '<option value="">Select Item...</option>'
-                    : '<option value="">Unknown Items (Select Toy above first)</option>';
-
+            let options = availableMasterToyItems.length > 0 ? '<option value="">Select Item...</option>' : '<option value="">Unknown Items (Select Toy above first)</option>';
             if (availableMasterToyItems.length > 0) {
-                availableMasterToyItems.forEach((mti) => {
-                    options += `<option value="${mti.id}">${mti.name} (${mti.type})</option>`;
-                });
+                availableMasterToyItems.forEach((mti) => { options += `<option value="${mti.id}">${mti.name} (${mti.type})</option>`; });
             }
             select.innerHTML = options;
-            if (currentVal && availableMasterToyItems.some((p) => p.id == currentVal)) {
-                select.value = currentVal;
-            }
+            if (currentVal && availableMasterToyItems.some((p) => p.id == currentVal)) select.value = currentVal;
         });
     };
 
     const addItemRow = async (data = null) => {
         if (availableMasterToyItems.length === 0 && widgetInput.value) {
             try {
-                const res = await fetch(
-                    `${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${widgetInput.value}`,
-                );
+                const res = await fetch(`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${widgetInput.value}`);
                 availableMasterToyItems = await res.json();
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         const index = rowCount++;
         const clone = template.content.cloneNode(true);
-        const row = clone.querySelector('.child-item-row');
-
-        clone.querySelectorAll('[name*="INDEX"]').forEach((el) => {
-            el.name = el.name.replace('INDEX', index);
-            if (el.id) el.id = el.id.replace('INDEX', index);
-        });
-        clone.querySelectorAll('[for*="INDEX"]').forEach((el) => {
-            el.setAttribute('for', el.getAttribute('for').replace('INDEX', index));
-        });
+        // Unikke navne/IDs
+        clone.querySelectorAll('[name*="INDEX"]').forEach((el) => { el.name = el.name.replace('INDEX', index); if (el.id) el.id = el.id.replace('INDEX', index); });
+        clone.querySelectorAll('[for*="INDEX"]').forEach((el) => { el.setAttribute('for', el.getAttribute('for').replace('INDEX', index)); });
 
         const masterToyItemSelect = clone.querySelector('.master-toy-item-select');
         const titleSpan = clone.querySelector('.item-display-name');
@@ -194,17 +158,14 @@ App.initDependentDropdowns = function () {
 
         if (availableMasterToyItems.length > 0) {
             let options = '<option value="">Select Item...</option>';
-            availableMasterToyItems.forEach((mti) => {
-                options += `<option value="${mti.id}">${mti.name} (${mti.type})</option>`;
-            });
+            availableMasterToyItems.forEach((mti) => { options += `<option value="${mti.id}">${mti.name} (${mti.type})</option>`; });
             masterToyItemSelect.innerHTML = options;
         } else {
             masterToyItemSelect.innerHTML = '<option value="">Unknown Items (Select Toy above first)</option>';
         }
 
         masterToyItemSelect.addEventListener('change', function () {
-            const selectedId = this.value;
-            const mti = availableMasterToyItems.find((p) => p.id == selectedId);
+            const mti = availableMasterToyItems.find((p) => p.id == this.value);
             if (mti) {
                 titleSpan.textContent = mti.name;
                 if (typeSpan) typeSpan.textContent = ` (${mti.type})`;
@@ -220,17 +181,13 @@ App.initDependentDropdowns = function () {
             idInput.name = `items[${index}][id]`;
             idInput.value = data.id;
             idInput.className = 'item-db-id'; 
-            row.prepend(idInput);
+            clone.querySelector('.child-item-row').prepend(idInput);
 
             titleSpan.textContent = data.master_toy_item_name || 'Item';
-            if (data.master_toy_item_type && typeSpan) {
-                typeSpan.textContent = ` (${data.master_toy_item_type})`;
-            }
+            if (data.master_toy_item_type && typeSpan) typeSpan.textContent = ` (${data.master_toy_item_type})`;
 
             if (masterToyItemSelect) masterToyItemSelect.value = data.master_toy_item_id;
-            if (data.is_loose == 1) clone.querySelector('.input-loose').checked = true;
-            else clone.querySelector('.input-loose').checked = false;
-
+            clone.querySelector('.input-loose').checked = (data.is_loose == 1);
             clone.querySelector('.input-condition').value = data.condition || '';
             clone.querySelector('.input-repro').value = data.is_reproduction || '';
             clone.querySelector('[name*="[purchase_date]"]').value = data.purchase_date || '';
@@ -242,16 +199,12 @@ App.initDependentDropdowns = function () {
             clone.querySelector('[name*="[storage_id]"]').value = data.storage_id || '';
             clone.querySelector('[name*="[user_comments]"]').value = data.user_comments || '';
 
-            const deleteBtn = clone.querySelector('.remove-row-btn');
-            deleteBtn.onclick = function (e) {
+            clone.querySelector('.remove-row-btn').onclick = function (e) {
                 e.preventDefault();
-                if (data.id) {
-                    App.deleteToyItem(data.id, this);
-                }
+                if (data.id) App.deleteToyItem(data.id, this);
             };
         } else {
-            const deleteBtn = clone.querySelector('.remove-row-btn');
-            deleteBtn.onclick = function (e) {
+            clone.querySelector('.remove-row-btn').onclick = function (e) {
                 e.preventDefault();
                 e.target.closest('.child-item-row').remove();
                 updateCount();
@@ -260,31 +213,22 @@ App.initDependentDropdowns = function () {
 
         container.appendChild(clone);
         updateCount();
-
-        if (!data) {
-            const newRow = container.lastElementChild;
-            if (newRow) newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        if (!data) container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
+    // Init existing items
     if (container && container.dataset.items) {
         try {
             const existingItems = JSON.parse(container.dataset.items);
-            if (Array.isArray(existingItems)) {
-                existingItems.forEach((item) => addItemRow(item));
-            }
-        } catch (e) {
-            console.error('Error parsing items', e);
-        }
+            if (Array.isArray(existingItems)) existingItems.forEach((item) => addItemRow(item));
+        } catch (e) { console.error('Error parsing items', e); }
     }
 
-    // --- WIDGET EVENT LISTENERS ---
+    // --- EVENTS & DROPDOWNS ---
     if(widgetCard) {
         widgetCard.addEventListener('click', function() {
             if (this.classList.contains('disabled')) return;
-            
-            const isMsgOpen = widgetOverlay.classList.contains('show');
-            if (isMsgOpen) {
+            if (widgetOverlay.classList.contains('show')) {
                 widgetOverlay.classList.remove('show');
             } else {
                 widgetOverlay.classList.add('show');
@@ -295,11 +239,7 @@ App.initDependentDropdowns = function () {
         });
     }
 
-    if(widgetSearch) {
-        widgetSearch.addEventListener('keyup', (e) => {
-            renderWidgetResults(e.target.value);
-        });
-    }
+    if(widgetSearch) widgetSearch.addEventListener('keyup', (e) => renderWidgetResults(e.target.value));
 
     document.addEventListener('click', function(event) {
         if (widgetOverlay && widgetOverlay.classList.contains('show')) {
@@ -309,63 +249,39 @@ App.initDependentDropdowns = function () {
         }
     });
 
-    // --- DROPDOWNS ---
-    const autoSelectIfSingle = (element, data) => {
-        if (data.length === 1) {
-            element.value = data[0].id;
-            element.dispatchEvent(new Event('change'));
-        }
-    };
-
     const loadManufacturers = (universeId) => {
         if (!manufacturerSelect) return;
-        manufacturerSelect.innerHTML = '<option>Loading...</option>';
-        manufacturerSelect.disabled = true;
+        manufacturerSelect.innerHTML = '<option>Loading...</option>'; manufacturerSelect.disabled = true;
         resetSelect(lineSelect, 'Select Manufacturer first...');
         resetWidget('Select Line first...');
-
-        if (!universeId) {
-            resetSelect(manufacturerSelect, 'Select Universe first...');
-            return;
-        }
+        if (!universeId) { resetSelect(manufacturerSelect, 'Select Universe first...'); return; }
 
         fetch(`${App.baseUrl}?module=Collection&controller=Api&action=get_manufacturers&universe_id=${universeId}`)
-            .then((res) => res.json())
-            .then((data) => {
+            .then((res) => res.json()).then((data) => {
                 populateSelect(manufacturerSelect, data, 'Select Manufacturer...');
-                autoSelectIfSingle(manufacturerSelect, data);
+                if(data.length === 1) { manufacturerSelect.value = data[0].id; manufacturerSelect.dispatchEvent(new Event('change')); }
             });
     };
 
     const loadLines = (manId) => {
-        lineSelect.innerHTML = '<option>Loading...</option>';
-        lineSelect.disabled = true;
+        lineSelect.innerHTML = '<option>Loading...</option>'; lineSelect.disabled = true;
         resetWidget('Select Line first...');
-        const uniId = universeSelect.value;
         if (!manId) return;
-
-        fetch(`${App.baseUrl}?module=Collection&controller=Api&action=get_lines&manufacturer_id=${manId}&universe_id=${uniId}`)
-            .then((res) => res.json())
-            .then((data) => {
+        fetch(`${App.baseUrl}?module=Collection&controller=Api&action=get_lines&manufacturer_id=${manId}&universe_id=${universeSelect.value}`)
+            .then((res) => res.json()).then((data) => {
                 populateSelect(lineSelect, data, 'Select Line...');
-                autoSelectIfSingle(lineSelect, data);
+                if(data.length === 1) { lineSelect.value = data[0].id; lineSelect.dispatchEvent(new Event('change')); }
             });
     };
 
     const loadToys = (lineId) => {
-        widgetInput.value = '';
-        currentMasterToysList = [];
+        widgetInput.value = ''; currentMasterToysList = [];
         if (widgetCard) widgetCard.classList.add('disabled');
         document.getElementById('displayToyTitle').textContent = 'Loading...';
-        
-        if (!lineId) {
-            document.getElementById('displayToyTitle').textContent = 'Select Line first...';
-            return;
-        }
+        if (!lineId) { document.getElementById('displayToyTitle').textContent = 'Select Line first...'; return; }
 
         fetch(`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toys&line_id=${lineId}`)
-            .then((res) => res.json())
-            .then((data) => {
+            .then((res) => res.json()).then((data) => {
                 currentMasterToysList = data;
                 if (widgetCard) widgetCard.classList.remove('disabled');
                 document.getElementById('displayToyTitle').textContent = 'Select Toy / Set...';
@@ -374,13 +290,9 @@ App.initDependentDropdowns = function () {
 
     const loadMasterToyItems = (toyId) => {
         availableMasterToyItems = [];
-        if (!toyId) {
-            refreshExistingRows();
-            return;
-        }
+        if (!toyId) { refreshExistingRows(); return; }
         fetch(`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${toyId}`)
-            .then((res) => res.json())
-            .then((data) => {
+            .then((res) => res.json()).then((data) => {
                 availableMasterToyItems = data;
                 refreshExistingRows();
             });
@@ -388,43 +300,56 @@ App.initDependentDropdowns = function () {
 
     if (universeSelect) {
         universeSelect.addEventListener('change', (e) => loadManufacturers(e.target.value));
-        if (universeSelect.value && manufacturerSelect && manufacturerSelect.options.length <= 1) {
-            loadManufacturers(universeSelect.value);
-        }
+        if (universeSelect.value && manufacturerSelect.options.length <= 1) loadManufacturers(universeSelect.value);
     }
     if (manufacturerSelect) manufacturerSelect.addEventListener('change', (e) => loadLines(e.target.value));
     if (lineSelect) lineSelect.addEventListener('change', (e) => loadToys(e.target.value));
     if (btnAddItem) btnAddItem.addEventListener('click', () => addItemRow());
 
-    // Ajax Submit Logic
+    // --- FIX: INITIALISER WIDGET I EDIT MODE (VIGTIG NY DEL) ---
+    if (widgetWrapper) {
+        // 1. Indlæs søgelisten med det samme (sparer et API kald hvis vi vil søge igen)
+        if (widgetWrapper.dataset.allToys) {
+            try {
+                currentMasterToysList = JSON.parse(widgetWrapper.dataset.allToys);
+            } catch (e) { console.error('Error parsing all toys', e); }
+        }
+
+        // 2. Vis det valgte toy visuelt
+        if (widgetWrapper.dataset.selectedToy) {
+            try {
+                const selectedToy = JSON.parse(widgetWrapper.dataset.selectedToy);
+                if (selectedToy) {
+                    updateWidgetDisplay(selectedToy);
+                    // Sæt titlen korrekt (overskriv "Select Line first...")
+                    if(widgetCard) widgetCard.classList.remove('disabled');
+                }
+            } catch (e) { console.error('Error parsing selected toy', e); }
+        }
+    }
+
+    // Ajax Submit
     const form = document.getElementById('addToyForm');
     if (form) {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            const rowCount = container.querySelectorAll('.child-item-row').length;
-            if (rowCount === 0) {
-                alert('You must add at least one Item (Figure/Part) before saving.');
+            if (container.querySelectorAll('.child-item-row').length === 0) {
+                alert('You must add at least one Item before saving.');
                 btnAddItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
             const formData = new FormData(form);
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalBtnText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
-            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...'; submitBtn.disabled = true;
 
             fetch(form.action, { method: 'POST', body: formData })
                 .then((response) => {
                     const contentType = response.headers.get("content-type");
                     if (contentType && contentType.indexOf("application/json") !== -1) {
                         return response.json().then(data => {
-                            if (data.success) {
-                                window.location.reload();
-                            } else {
-                                alert('Error saving: ' + (data.error || 'Unknown error'));
-                                submitBtn.disabled = false;
-                                submitBtn.innerHTML = originalBtnText;
-                            }
+                            if (data.success) window.location.reload();
+                            else { alert('Error: ' + data.error); submitBtn.disabled = false; submitBtn.innerHTML = originalBtnText; }
                         });
                     } else {
                         return response.text().then(html => {
@@ -436,11 +361,7 @@ App.initDependentDropdowns = function () {
                         });
                     }
                 })
-                .catch((err) => {
-                    alert('An error occurred while saving.');
-                    submitBtn.innerHTML = originalBtnText;
-                    submitBtn.disabled = false;
-                });
+                .catch((err) => { alert('Error saving.'); submitBtn.innerHTML = originalBtnText; submitBtn.disabled = false; });
         });
     }
 };

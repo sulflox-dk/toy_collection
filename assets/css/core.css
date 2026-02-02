@@ -18,6 +18,16 @@ h5, .h5 { font-size: 1.1rem; }
 .form-label { font-size: 0.875rem; }
 .border-dashed { border-style: dashed !important; border-width: 2px !important; }
 
+/* FJERNER DEN BLÅ FOCUS-RING (GLOW) */
+.form-control:focus,
+.form-select:focus,
+.btn:focus,
+.btn-close:focus {
+    box-shadow: none !important;      /* Fjerner den blå skygge */
+    border-color: rgb(222,226,230) !important; /* Laver kanten mørkegrå/sort i stedet */
+    outline: none !important;
+}
+
 /* =========================================
    3. MODAL LAYOUT
    ========================================= */

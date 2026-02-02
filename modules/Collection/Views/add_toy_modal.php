@@ -70,7 +70,25 @@ $jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HE
                         
                         <input type="hidden" name="master_toy_id" id="inputMasterToyId" value="<?= $toyData['master_toy_id'] ?? '' ?>" required>
 
-                        <div class="toy-selector-wrapper">
+                        <?php
+                        // PHP LOGIK: Find det valgte toy objekt og listen til JS
+                        $currentToyObj = null;
+                        if ($isEdit && !empty($masterToys) && !empty($toyData['master_toy_id'])) {
+                            foreach ($masterToys as $mt) {
+                                if ($mt['id'] == $toyData['master_toy_id']) {
+                                    $currentToyObj = $mt;
+                                    break;
+                                }
+                            }
+                        }
+                        $jsonSelectedToy = $currentToyObj ? json_encode($currentToyObj, JSON_HEX_APOS|JSON_HEX_QUOT) : '';
+                        // Vi sender også hele listen med, så søgning virker med det samme uden API kald
+                        $jsonAllToys = json_encode($masterToys ?? [], JSON_HEX_APOS|JSON_HEX_QUOT);
+                        ?>
+
+                        <div class="toy-selector-wrapper" id="masterToyWidgetWrapper"
+                             data-selected-toy='<?= $jsonSelectedToy ?>'
+                             data-all-toys='<?= $jsonAllToys ?>'>
                             
                             <div id="masterToyDisplayCard" class="toy-display-card <?= $isEdit ? '' : 'disabled' ?>">
                                 <div class="toy-thumb-container">
@@ -220,10 +238,10 @@ $jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HE
     <div class="card child-item-row">
         <input type="hidden" name="items[INDEX][id]" class="item-db-id">
         
-        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2 text-muted fw-normal">
+        <div class="card-header child-item-header d-flex justify-content-between align-items-center py-2 fw-normal">
             <span>
                 <i class="fas fa-puzzle-piece me-2"></i>
-                <span class="item-display-name text-uppercase text-secondary">New Item</span>
+                <span class="item-display-name text-uppercase">New Item</span>
                 <span class="item-type-display text-body-tertiary fw-normal ms-1"></span>
             </span>
             <button type="button" class="btn btn-sm btn-outline-secondary px-2 delete-btn-general remove-row-btn">
@@ -235,7 +253,7 @@ $jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HE
             <div class="row g-3 mb-3 align-items-end">
                 <div class="col-md-5">
                     <label class="form-label small text-muted mb-1">Item</label>
-                    <select class="form-select form-select-sm master-toy-item-select border-dark" name="items[INDEX][master_toy_item_id]" required>
+                    <select class="form-select form-select-sm master-toy-item-select" name="items[INDEX][master_toy_item_id]" required>
                         <option value="">Select Master Toy first...</option>
                     </select>
                 </div>
@@ -267,9 +285,7 @@ $jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HE
                 </div>
             </div>
 
-            <hr class="text-muted opacity-25 my-2">
-
-            <h6 class="text-muted text-uppercase mb-2 small-section-header">Purchase Information (if different)</h6>
+            <div class="mt-4 text-muted text-uppercase mb-2 small-section-header">Purchase Information (if different)</div>
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Purchase Date</label>
@@ -306,9 +322,7 @@ $jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HE
                 </div>
             </div>
 
-            <hr class="text-muted opacity-25 my-2">
-
-            <h6 class="text-muted text-uppercase mb-2 small-section-header">Collection Metadata</h6>
+            <div class="mt-4 text-muted text-uppercase mb-2 small-section-header">Collection Metadata</div>
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Personal Toy ID</label>
