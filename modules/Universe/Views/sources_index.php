@@ -1,5 +1,5 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">Entertainment Sources</h1>
+    <h1 class="h3 mb-0">Data / Entertainment Sources</h1>
 </div>
 
 <div class="row">

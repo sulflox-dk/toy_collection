@@ -1,5 +1,5 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">Product Types</h1>
+    <h1 class="h3 mb-0">Catalog / Product Types</h1>
 </div>
 
 <div class="row">
