@@ -14,6 +14,7 @@ use CollectionApp\Kernel\Config;
     <link href="<?= Config::get('base_url') ?>assets/css/core.css?v=<?= time() ?>" rel="stylesheet">
     <link href="<?= Config::get('base_url') ?>assets/css/dashboard.css?v=<?= time() ?>" rel="stylesheet">
     <link href="<?= Config::get('base_url') ?>assets/css/collection.css?v=<?= time() ?>" rel="stylesheet">
+    <link href="<?= Config::get('base_url') ?>assets/css/catalog.css?v=<?= time() ?>" rel="stylesheet">
     <link href="<?= Config::get('base_url') ?>assets/css/media_library.css?v=<?= time() ?>" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

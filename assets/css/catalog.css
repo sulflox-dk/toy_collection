@@ -1,0 +1,37 @@
+/* Match styles from Collection Modal */
+.section-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+.form-section-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+.btn-dashed {
+    border: 2px dashed #dee2e6;
+    background-color: transparent;
+    color: #6c757d;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+.btn-dashed:hover {
+    border-color: #adb5bd;
+    color: #495057;
+    background-color: #f8f9fa;
+}
+.item-card {
+    background-color: #fff;
+    border: 1px solid #e9ecef;
+    border-left: 3px solid #212529; /* Accent farve */
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+.item-card:hover {
+    border-color: #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}

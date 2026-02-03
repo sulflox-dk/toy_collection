@@ -118,4 +118,100 @@ class MasterToyModel {
 
         return $this->db->query("DELETE FROM master_toys WHERE id = :id", ['id' => $id]);
     }
+
+    public function getById($id) {
+        $toy = $this->db->query("SELECT * FROM master_toys WHERE id = :id", ['id' => $id])->fetch();
+        if (!$toy) return null;
+
+        // Hent også items
+        $toy['items'] = $this->db->query("
+            SELECT mti.*, s.name as subject_name 
+            FROM master_toy_items mti
+            LEFT JOIN subjects s ON mti.subject_id = s.id
+            WHERE mti.master_toy_id = :id
+        ", ['id' => $id])->fetchAll();
+
+        return $toy;
+    }
+
+    public function create($data) {
+        $this->db->query("BEGIN"); // Start transaktion
+        try {
+            // 1. Insert Master Toy
+            $sql = "INSERT INTO master_toys 
+                    (line_id, product_type_id, entertainment_source_id, name, release_year, wave_number, assortment_sku, description) 
+                    VALUES (:line, :type, :source, :name, :year, :wave, :sku, :desc)";
+            
+            $this->db->query($sql, [
+                'line'   => $data['line_id'],
+                'type'   => $data['product_type_id'] ?: null,
+                'source' => $data['entertainment_source_id'] ?: null,
+                'name'   => $data['name'],
+                'year'   => $data['release_year'] ?: null,
+                'wave'   => $data['wave_number'] ?: null,
+                'sku'    => $data['assortment_sku'] ?: null,
+                'desc'   => $data['description'] ?: null
+            ]);
+            
+            $id = $this->db->lastInsertId();
+
+            // 2. Insert Items
+            if (!empty($data['items'])) {
+                $this->saveItems($id, $data['items']);
+            }
+
+            $this->db->query("COMMIT");
+            return $id;
+        } catch (\Exception $e) {
+            $this->db->query("ROLLBACK");
+            throw $e;
+        }
+    }
+
+    public function update($id, $data) {
+        $this->db->query("BEGIN");
+        try {
+            $sql = "UPDATE master_toys SET 
+                    line_id = :line, product_type_id = :type, entertainment_source_id = :source,
+                    name = :name, release_year = :year, wave_number = :wave, assortment_sku = :sku, description = :desc
+                    WHERE id = :id";
+            
+            $this->db->query($sql, [
+                'line'   => $data['line_id'],
+                'type'   => $data['product_type_id'] ?: null,
+                'source' => $data['entertainment_source_id'] ?: null,
+                'name'   => $data['name'],
+                'year'   => $data['release_year'] ?: null,
+                'wave'   => $data['wave_number'] ?: null,
+                'sku'    => $data['assortment_sku'] ?: null,
+                'desc'   => $data['description'] ?: null,
+                'id'     => $id
+            ]);
+
+            // Opdater items (slet gamle og indsæt nye)
+            $this->db->query("DELETE FROM master_toy_items WHERE master_toy_id = :id", ['id' => $id]);
+            if (!empty($data['items'])) {
+                $this->saveItems($id, $data['items']);
+            }
+
+            $this->db->query("COMMIT");
+            return true;
+        } catch (\Exception $e) {
+            $this->db->query("ROLLBACK");
+            throw $e;
+        }
+    }
+
+    private function saveItems($toyId, $items) {
+        $sql = "INSERT INTO master_toy_items (master_toy_id, subject_id, variation_name, quantity) VALUES (:tid, :sid, :var, :qty)";
+        foreach ($items as $item) {
+            if (empty($item['subject_id'])) continue;
+            $this->db->query($sql, [
+                'tid' => $toyId,
+                'sid' => $item['subject_id'],
+                'var' => $item['variation_name'] ?: null,
+                'qty' => $item['quantity'] ?: 1
+            ]);
+        }
+    }
 }
