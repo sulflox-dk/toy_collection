@@ -35,3 +35,24 @@
     border-color: #dee2e6;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
+
+/* Subject Selector Widget */
+.subject-result-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f1f1f1;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.subject-result-item:hover {
+    background-color: #f8f9fa;
+}
+.subject-result-item:last-child {
+    border-bottom: none;
+}
+/* Sikrer at dropdown ikke bliver klippet af kortet */
+.item-row .card-body {
+    overflow: visible !important;
+}
+.item-row {
+    overflow: visible !important;
+}

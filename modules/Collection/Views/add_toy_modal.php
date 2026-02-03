@@ -213,7 +213,7 @@ $jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HE
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="section-label mb-0">Included Items (Parts/Figures)</h6>
-            <span class="badge item-count-badge" id="itemCountBadge">0 items</span>
+            <span class="badge item-count-badge" id="itemCountBadge">0 item(s)</span>
         </div>
         
         <div id="childItemsContainer" 
@@ -222,7 +222,7 @@ $jsonMasterToyItems = json_encode($availableParts ?? [], JSON_HEX_APOS | JSON_HE
         </div>
 
         <button type="button" class="btn btn-outline-dark w-100 py-2 border-dashed" id="btnAddItemRow">
-            <i class="fas fa-plus me-2"></i> Add Item to this Set
+            <i class="fas fa-plus me-2"></i> Add Item to this Toy
         </button>
 
     </div>

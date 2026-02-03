@@ -230,12 +230,12 @@ App.initDependentDropdowns = function () {
             clone.querySelector('.remove-row-btn').onclick = function (e) {
                 e.preventDefault();
                 e.target.closest('.child-item-row').remove();
-                if(countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} items`;
+                if(countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} item(s)`;
             };
         }
 
         container.appendChild(clone);
-        if(countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} items`;
+        if(countBadge) countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} item(s)`;
         if (!data) container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 

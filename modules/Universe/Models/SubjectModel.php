@@ -95,6 +95,6 @@ class SubjectModel {
     }
 
     public function getAllSimple() {
-        return $this->db->query("SELECT id, name, type, faction FROM subjects ORDER BY name ASC")->fetchAll();
+        return $this->db->query("SELECT * FROM subjects ORDER BY name ASC")->fetchAll();
     }
 }

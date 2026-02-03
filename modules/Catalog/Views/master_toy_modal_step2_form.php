@@ -1,21 +1,25 @@
 <?php
 // Forbered data til JavaScript (Items)
 $jsonItems = json_encode($toy['items'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
+$isEdit = !empty($toy['id']);
+
+// Forbered subjects med fuld data til JS søgning (VIGTIGT)
+$jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 
 <div class="modal-header bg-dark text-white">
     <h5 class="modal-title">
-        <i class="fas fa-robot me-2"></i><?= $toy ? 'Edit Master Toy' : 'Add New Master Toy' ?>
+        <i class="fas fa-robot me-2"></i><?= $isEdit ? 'Edit Master Toy' : 'Add New Master Toy' ?>
     </h5>
     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 </div>
 
 <form id="masterToyForm">
-    <?php if($toy): ?><input type="hidden" name="id" value="<?= $toy['id'] ?>"><?php endif; ?>
+    <?php if($isEdit): ?><input type="hidden" name="id" value="<?= $toy['id'] ?>"><?php endif; ?>
     
     <div class="modal-body p-4 modal-body-custom bg-light">
         
-        <div class="text-muted text-uppercase mb-2 small-section-header">Product Details</div>
+        <h6 class="section-label">General Toy Information</h6>
         
         <div class="card form-section-card shadow-sm border-0 mb-4">
             <div class="card-body">
@@ -81,20 +85,17 @@ $jsonItems = json_encode($toy['items'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="text-muted text-uppercase small-section-header mb-0">Box Contents</div>
-            <span class="badge bg-secondary rounded-pill" id="itemCountBadge">0</span>
+            <h6 class="section-label mb-0">Included Items (Parts/Figures)</h6>
+            <span class="badge bg-secondary" id="itemCountBadge">0 item(s)</span>
         </div>
 
-        <div id="itemsContainer" class="vstack gap-2" data-items='<?= $jsonItems ?>'>
-            </div>
+        <div id="itemsContainer" class="vstack gap-2" 
+             data-items='<?= $jsonItems ?>' 
+             data-subjects='<?= $jsonSubjects ?>'>
+        </div>
         
-        <div id="emptyItemsMsg" class="text-center text-muted small py-4" style="display:none;">
-            <i class="fas fa-box-open mb-2 fs-4 d-block opacity-50"></i>
-            No contents defined.
-        </div>
-
-        <button type="button" class="btn btn-dashed w-100 py-2 mt-2" id="btnAddRow">
-            <i class="fas fa-plus me-2"></i>Add Content Item
+        <button type="button" class="btn btn-outline-dark w-100 py-2 border-dashed" onclick="MasterToyMgr.addItem()">
+            <i class="fas fa-plus me-2"></i> Add Item to this Toy
         </button>
 
     </div>
@@ -102,33 +103,59 @@ $jsonItems = json_encode($toy['items'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
     <div class="modal-footer bg-light justify-content-between">
         <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-dark px-4" onclick="MasterToyMgr.submitForm()">
-            <?= $toy ? 'Update Toy' : 'Create & Add Photos' ?>
+            <?= $isEdit ? 'Update Toy' : 'Create Toy and Continue' ?>
         </button>
     </div>
 </form>
 
 <template id="itemRowTemplate">
-    <div class="card mb-2 border shadow-sm item-row">
+    <div class="card mb-2 item-row border-0 shadow-sm" style="background-color: #fff; border: 1px solid #dee2e6;">
         <div class="card-body p-3 position-relative">
-            <button type="button" class="btn-close position-absolute top-0 end-0 m-2 small remove-row" aria-label="Remove" style="font-size: 0.7rem;"></button>
+            <button type="button" class="btn-close position-absolute top-0 end-0 m-2 small remove-row" aria-label="Remove" onclick="MasterToyMgr.removeItem(this)" style="font-size: 0.7rem; z-index: 5;"></button>
             
             <div class="row g-2 align-items-end">
+                
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Subject</label>
-                    <select class="form-select form-select-sm input-subject" name="items[INDEX][subject_id]" required>
-                        <option value="">Select Subject...</option>
-                        <?php foreach($subjects as $s): ?>
-                            <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <input type="hidden" class="input-subject-id" name="items[UID][subject_id]">
+                    
+                    <div class="subject-selector-wrapper position-relative">
+                        <div class="subject-display-card d-flex align-items-center border rounded px-2 py-2 bg-white" 
+                             onclick="MasterToyMgr.toggleSearch(this)"
+                             style="cursor: pointer; min-height: 38px;">
+                            
+                            <div class="me-2 text-muted d-flex align-items-center justify-content-center" style="width: 24px;">
+                                <i class="fas fa-user-circle fs-5 subject-icon"></i>
+                            </div>
+                            
+                            <div class="flex-grow-1 lh-1">
+                                <div class="subject-name fw-medium small text-truncate">Select Subject...</div>
+                                <div class="subject-meta text-muted" style="font-size: 0.7rem; display: none;"></div>
+                            </div>
+                            
+                            <i class="fas fa-chevron-down text-muted small ms-2"></i>
+                        </div>
+
+                        <div class="subject-search-dropdown position-absolute w-100 bg-white border rounded shadow-sm mt-1 d-none" style="z-index: 1050; top: 100%;">
+                            <div class="p-2 border-bottom bg-light">
+                                <input type="text" class="form-control form-control-sm search-input" 
+                                       placeholder="Type to search..." 
+                                       onkeyup="MasterToyMgr.filterSubjects(this)"
+                                       autocomplete="off">
+                            </div>
+                            <div class="results-list overflow-auto" style="max-height: 200px;">
+                                </div>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="col-md-4">
                     <label class="form-label small text-muted mb-1">Variant / Note</label>
-                    <input type="text" class="form-control form-control-sm input-variant" name="items[INDEX][variation_name]" placeholder="e.g. Red Cape">
+                    <input type="text" class="form-control form-control-sm input-variant" name="items[UID][variation_name]" placeholder="e.g. Red Cape">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">Qty</label>
-                    <input type="number" class="form-control form-control-sm input-qty" name="items[INDEX][quantity]" value="1" min="1">
+                    <input type="number" class="form-control form-control-sm input-qty" name="items[UID][quantity]" value="1" min="1">
                 </div>
             </div>
         </div>

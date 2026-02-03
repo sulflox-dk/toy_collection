@@ -51,6 +51,7 @@
 .form-section-card {
     background-color: #fff; border: none; border-radius: 0.5rem;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); margin-bottom: 1.5rem;
+    overflow: visible !important;
 }
 .universe-grid-container { max-width: 900px; }
 .universe-title { text-align: center; margin-bottom: 3rem; font-weight: 300; text-transform: uppercase; letter-spacing: 2px; }
@@ -102,7 +103,7 @@
     position: absolute; top: 100%; left: 0; right: 0;
     background-color: #fff; border: 1px solid #dee2e6; border-top: none;
     border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem;
-    box-shadow: 0 15px 30px rgba(0,0,0,0.15); z-index: 1000;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15); z-index: 2000;
     display: none; max-height: 400px; flex-direction: column;
 }
 .toy-search-overlay.show { display: flex; }

@@ -6,7 +6,7 @@ use CollectionApp\Modules\Catalog\Models\MasterToyModel;
 use CollectionApp\Modules\Catalog\Models\ToyLineModel;
 use CollectionApp\Modules\Universe\Models\UniverseModel;
 use CollectionApp\Modules\Universe\Models\EntertainmentSourceModel;
-use CollectionApp\Modules\Universe\Models\SubjectModel; // Husk at denne bruges
+use CollectionApp\Modules\Universe\Models\SubjectModel; // <--- VIGTIGT
 
 class MasterToyController extends Controller {
 
@@ -14,7 +14,7 @@ class MasterToyController extends Controller {
     private $lineModel;
     private $uniModel;
     private $sourceModel;
-    private $subModel; // RETTELSE 1: Tilføjet property
+    private $subModel; // <--- VIGTIGT
 
     public function __construct() {
         parent::__construct();
@@ -22,7 +22,7 @@ class MasterToyController extends Controller {
         $this->lineModel = new ToyLineModel();
         $this->uniModel = new UniverseModel();
         $this->sourceModel = new EntertainmentSourceModel();
-        $this->subModel = new SubjectModel(); // RETTELSE 2: Instansieret her
+        $this->subModel = new SubjectModel(); // <--- VIGTIGT: Instansier modellen
     }
 
     public function index() {
@@ -68,13 +68,13 @@ class MasterToyController extends Controller {
         });
     }
 
-    // --- STEP 1: Vælg Univers ---
+    // --- STEP 1 ---
     public function modal_step1() {
         $universes = $this->uniModel->getAllWithStats();
         $this->view->renderPartial('master_toy_modal_step1_universe', ['universes' => $universes], 'Catalog');
     }
 
-    // --- STEP 2: Indtast Data (Add/Edit) ---
+    // --- STEP 2 ---
     public function modal_step2() {
         $universeId = $_GET['universe_id'] ?? null;
         $toyId = $_GET['id'] ?? null;
@@ -85,17 +85,13 @@ class MasterToyController extends Controller {
             if (!$toy) die("Toy not found");
         }
 
-        // Product Types
+        // Hent data
         $prodTypeModel = new \CollectionApp\Modules\Catalog\Models\ProductTypeModel();
         $types = $prodTypeModel->getAllSimple();
-
-        // Toy Lines
         $lines = $this->lineModel->getAllSimple();
-        
-        // Sources
         $sources = $this->sourceModel->getAllSimple(); 
-
-        // Subjects (Nu virker denne, da subModel er oprettet)
+        
+        // Hent subjects (Nu uden JOIN-fejlen)
         $subjects = $this->subModel->getAllSimple();
 
         $this->view->renderPartial('master_toy_modal_step2_form', [
@@ -120,7 +116,6 @@ class MasterToyController extends Controller {
         $this->jsonHandler(function() {
             $id = (int)$_POST['id'];
             if (!$id) throw new \Exception("Missing ID");
-            
             $data = $this->getPostData();
             $this->model->update($id, $data);
             return ['success' => true, 'id' => $id];
@@ -154,7 +149,6 @@ class MasterToyController extends Controller {
         ];
     }
 
-    // RETTELSE 3: Tilføjet jsonHandler helper metoden
     private function jsonHandler(callable $callback) {
         header('Content-Type: application/json');
         try {
