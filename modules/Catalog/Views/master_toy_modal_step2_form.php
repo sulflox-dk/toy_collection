@@ -175,7 +175,7 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                                        onkeyup="MasterToyMgr.filterSubjects(this)"
                                        autocomplete="off">
                             </div>
-                            <div class="results-list overflow-auto" style="max-height: 200px;"></div>
+                            <div class="results-list overflow-auto" style="max-height: 380px;"></div>
                         </div>
                     </div>
                 </div>
