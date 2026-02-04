@@ -12,10 +12,12 @@ const MasterToyMgr = {
         this.filterSource = document.getElementById('filterSource');
 
         // Filters
-        const filters = [this.filterUni, this.filterLine, this.filterSource];
-        filters.forEach(f => {
-            if(f) f.addEventListener('change', () => this.loadPage(1));
-        });
+        if(this.filterUni) {
+            const filters = [this.filterUni, this.filterLine, this.filterSource];
+            filters.forEach(f => {
+                if(f) f.addEventListener('change', () => this.loadPage(1));
+            });
+        }
 
         // Search Delay
         let timeout;
@@ -28,7 +30,7 @@ const MasterToyMgr = {
 
         this.attachGridListeners();
 
-        // --- MUTATION OBSERVER (VIGTIG: Denne får modalen til at virke) ---
+        // --- MUTATION OBSERVER ---
         const modalEl = document.getElementById('appModal');
         if(modalEl) {
             const observer = new MutationObserver(() => {
@@ -44,16 +46,17 @@ const MasterToyMgr = {
     },
 
     loadPage: function(page) {
+        // ... (uændret)
         const params = new URLSearchParams({
             module: 'Catalog', 
             controller: 'MasterToy', 
             action: 'index',
             ajax_grid: 1, 
             page: page,
-            universe_id: this.filterUni.value,
-            line_id: this.filterLine.value,
-            source_id: this.filterSource.value,
-            search: this.search.value
+            universe_id: this.filterUni ? this.filterUni.value : '',
+            line_id: this.filterLine ? this.filterLine.value : '',
+            source_id: this.filterSource ? this.filterSource.value : '',
+            search: this.search ? this.search.value : ''
         });
 
         this.container.style.opacity = '0.5';
@@ -67,6 +70,7 @@ const MasterToyMgr = {
     },
 
     attachGridListeners: function() {
+        // ... (uændret)
         document.querySelectorAll('.btn-delete').forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = this.closest('tr').dataset.id;
@@ -108,6 +112,9 @@ const MasterToyMgr = {
     initForm: function() {
         console.log('Initializing Master Toy Form...');
         
+        // Start listeners for Universe/Manufacturer select
+        this.initStep2Listeners(); // <--- NYT KALD
+
         const container = document.getElementById('itemsContainer');
         const template = document.getElementById('itemRowTemplate');
 
@@ -128,17 +135,81 @@ const MasterToyMgr = {
         this.updateUI();
     },
 
-    // Tilføj ny række (Kaldes via onclick i HTML)
+    // --- NY FUNKTION: Håndterer Universe -> Manufacturer -> ToyLine ---
+    // I assets/js/master_toy_manager.js
+
+    initStep2Listeners: function() {
+        const uniSelect = document.getElementById('master_toy_universe_id');
+        const manSelect = document.getElementById('master_toy_manufacturer_id');
+        const lineSelect = document.getElementById('master_toy_toy_line_id');
+
+        if (!uniSelect || !manSelect || !lineSelect) return;
+
+        // 1. Universe Change -> Load Manufacturers
+        uniSelect.addEventListener('change', function() {
+            const universeId = this.value;
+            
+            manSelect.innerHTML = '<option value="">Loading...</option>';
+            lineSelect.innerHTML = '<option value="">Select Manufacturer first...</option>';
+
+            if(universeId) {
+                fetch(`${App.baseUrl}?module=Catalog&controller=Manufacturer&action=get_json&universe_id=${universeId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        let html = '<option value="">Select Manufacturer...</option>';
+                        data.forEach(item => {
+                            html += `<option value="${item.id}">${item.name}</option>`;
+                        });
+                        manSelect.innerHTML = html;
+
+                        // --- UX FEATURE: Auto-select hvis kun 1 mulighed ---
+                        if (data.length === 1) {
+                            manSelect.value = data[0].id;
+                            // VIGTIGT: Trigger change event manuelt så næste dropdown (Lines) loader
+                            manSelect.dispatchEvent(new Event('change'));
+                        }
+                    });
+            } else {
+                 manSelect.innerHTML = '<option value="">Select Universe...</option>';
+            }
+        });
+
+        // 2. Manufacturer Change -> Load Toy Lines
+        manSelect.addEventListener('change', function() {
+            const manufacturerId = this.value;
+            lineSelect.innerHTML = '<option value="">Loading...</option>';
+
+            if(manufacturerId) {
+                fetch(`${App.baseUrl}?module=Catalog&controller=ToyLine&action=get_json&manufacturer_id=${manufacturerId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        let html = '<option value="">Select Toy Line...</option>';
+                        data.forEach(item => {
+                            html += `<option value="${item.id}">${item.name}</option>`;
+                        });
+                        lineSelect.innerHTML = html;
+
+                        // --- UX FEATURE: Auto-select hvis kun 1 mulighed ---
+                        if (data.length === 1) {
+                            lineSelect.value = data[0].id;
+                            // Vi behøver ikke trigger change her, da det er sidste led i kæden,
+                            // men det skader ikke hvis vi senere tilføjer mere logik.
+                        }
+                    });
+            } else {
+                lineSelect.innerHTML = '<option value="">Select Manufacturer first...</option>';
+            }
+        });
+    },
+
+    // ... (Behold addItem, removeItem, renderRow, updateUI, toggleSearch, osv. uændret) ...
     addItem: function() {
         this.renderRow({ quantity: 1 });
         this.updateUI();
-        
-        // Scroll til bunden
         const container = document.getElementById('itemsContainer');
         if(container) setTimeout(() => container.scrollTop = container.scrollHeight, 50);
     },
 
-    // Fjern række (Kaldes via onclick i HTML)
     removeItem: function(btn) {
         const row = btn.closest('.item-row');
         if(row) {
@@ -147,7 +218,6 @@ const MasterToyMgr = {
         }
     },
 
-    // Helper til at tegne en række
     renderRow: function(item) {
         const container = document.getElementById('itemsContainer');
         const template = document.getElementById('itemRowTemplate');
@@ -155,25 +225,20 @@ const MasterToyMgr = {
         const clone = template.content.cloneNode(true);
         const row = clone.querySelector('.item-row');
         
-        // Unikt ID til inputs
         const uid = Date.now() + Math.floor(Math.random() * 1000);
 
-        // Opdater navne i inputs
         row.querySelectorAll('[name*="UID"]').forEach(el => {
             el.name = el.name.replace('UID', uid);
         });
 
-        // Sæt simple værdier
-        if (item.variation_name) row.querySelector('.input-variant').value = item.variation_name;
+        if (item.variant_description) row.querySelector('.input-variant').value = item.variant_description;
         if (item.quantity) row.querySelector('.input-qty').value = item.quantity;
 
-        // Sæt Subject Widget Værdi
         const subjectInput = row.querySelector('.input-subject-id');
         const displayCard = row.querySelector('.subject-display-card');
         
         if (item.subject_id) {
             subjectInput.value = item.subject_id;
-            // Find subject data for at vise navn m.m.
             const subject = this.allSubjects.find(s => s.id == item.subject_id);
             if(subject) {
                 this.updateSubjectDisplay(displayCard, subject);
@@ -186,26 +251,18 @@ const MasterToyMgr = {
     updateUI: function() {
         const container = document.getElementById('itemsContainer');
         const badge = document.getElementById('itemCountBadge');
-        const emptyMsg = document.getElementById('emptyItemsMsg');
-
         if(container && badge) {
             const count = container.querySelectorAll('.item-row').length;
             badge.textContent = count + " item(s)";
-            
-            if(emptyMsg) {
-                emptyMsg.style.display = count === 0 ? 'block' : 'none';
-            }
         }
     },
 
-    // --- SUBJECT WIDGET LOGIC ---
-
     toggleSearch: function(cardEl) {
+        // ... (Behold din toggleSearch logik uændret)
         const wrapper = cardEl.closest('.subject-selector-wrapper');
         const dropdown = wrapper.querySelector('.subject-search-dropdown');
         const input = dropdown.querySelector('.search-input');
         
-        // Luk alle andre åbne dropdowns
         document.querySelectorAll('.subject-search-dropdown').forEach(el => {
             if(el !== dropdown) el.classList.add('d-none');
         });
@@ -215,9 +272,8 @@ const MasterToyMgr = {
             dropdown.classList.remove('d-none');
             input.value = ''; 
             input.focus();
-            this.filterSubjects(input); // Vis initial liste
+            this.filterSubjects(input);
             
-            // Klik udenfor lukker dropdown
             setTimeout(() => {
                 const closeHandler = (e) => {
                     if (!wrapper.contains(e.target)) {
@@ -233,10 +289,10 @@ const MasterToyMgr = {
     },
 
     filterSubjects: function(inputEl) {
+        // ... (Behold filterSubjects logik uændret)
         const term = inputEl.value.toLowerCase();
         const listEl = inputEl.closest('.subject-search-dropdown').querySelector('.results-list');
         
-        // Filtrer og vis max 50 resultater
         const matches = this.allSubjects.filter(s => {
             return s.name.toLowerCase().includes(term) || 
                    (s.type && s.type.toLowerCase().includes(term));
@@ -249,8 +305,6 @@ const MasterToyMgr = {
 
         let html = '';
         matches.forEach(s => {
-            // Byg info-tekst: Type ? Faction
-            // Bruger en simpel visning, da 'faction' måske ikke findes endnu
             const metaParts = [];
             if(s.type) metaParts.push(s.type);
             if(s.faction) metaParts.push(s.faction);
@@ -267,25 +321,24 @@ const MasterToyMgr = {
     },
 
     selectSubject: function(itemEl, id) {
+        // ... (Behold uændret)
         const wrapper = itemEl.closest('.subject-selector-wrapper');
         const input = wrapper.parentNode.querySelector('.input-subject-id');
         const displayCard = wrapper.querySelector('.subject-display-card');
         const dropdown = wrapper.querySelector('.subject-search-dropdown');
 
-        // Sæt hidden value
         input.value = id;
 
-        // Opdater display kortet
         const subject = this.allSubjects.find(s => s.id == id);
         if(subject) {
             this.updateSubjectDisplay(displayCard, subject);
         }
 
-        // Luk dropdown
         dropdown.classList.add('d-none');
     },
 
     updateSubjectDisplay: function(cardEl, subject) {
+        // ... (Behold uændret)
         const nameEl = cardEl.querySelector('.subject-name');
         const metaEl = cardEl.querySelector('.subject-meta');
         const iconEl = cardEl.querySelector('.subject-icon');
@@ -299,16 +352,14 @@ const MasterToyMgr = {
         metaEl.innerHTML = metaParts.join(' &bull; ');
         metaEl.style.display = 'block';
 
-        // Opdater ikon baseret på type
         if(subject.type === 'Character') iconEl.className = 'fas fa-user subject-icon';
         else if(subject.type === 'Vehicle') iconEl.className = 'fas fa-fighter-jet subject-icon';
         else if(subject.type === 'Creature') iconEl.className = 'fas fa-dragon subject-icon';
         else iconEl.className = 'fas fa-cube subject-icon';
     },
 
-    // --- SUBMIT & DELETE ---
-
     submitForm: function() {
+        // ... (Behold uændret)
         const form = document.getElementById('masterToyForm');
         if(!form.checkValidity()) {
             form.reportValidity();
@@ -317,7 +368,7 @@ const MasterToyMgr = {
 
         const formData = new FormData(form);
         const id = formData.get('id');
-        const action = id ? 'update' : 'store';
+        const action = id ? 'update' : 'create';
 
         const btn = form.querySelector('button[onclick*="submitForm"]');
         let originalText = '';
@@ -366,6 +417,7 @@ const MasterToyMgr = {
     },
 
     executeDelete: function(id) {
+        // ... (Behold uændret)
         const formData = new FormData();
         formData.append('id', id);
         

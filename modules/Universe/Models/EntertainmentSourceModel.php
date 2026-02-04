@@ -107,7 +107,7 @@ class EntertainmentSourceModel {
      */
     public function getAllSimple() {
         return $this->db->query("
-            SELECT es.id, es.name, u.name as universe_name 
+            SELECT es.id, es.name, es.type, u.name as universe_name 
             FROM entertainment_sources es
             JOIN universes u ON es.universe_id = u.id
             ORDER BY u.name ASC, es.name ASC

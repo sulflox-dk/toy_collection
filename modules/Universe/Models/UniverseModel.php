@@ -75,4 +75,12 @@ class UniverseModel {
         // Slet selve universet
         return $this->db->query("DELETE FROM universes WHERE id = :id", ['id' => $id]);
     }
+
+    /**
+     * Henter en simpel liste af universer (ID og Navn) til dropdowns.
+     * Sorteret alfabetisk.
+     */
+    public function getAllSimple() {
+        return $this->db->query("SELECT id, name FROM universes ORDER BY name ASC")->fetchAll();
+    }
 }

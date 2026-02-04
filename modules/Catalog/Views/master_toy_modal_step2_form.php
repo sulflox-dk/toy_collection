@@ -3,7 +3,7 @@
 $jsonItems = json_encode($toy['items'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 $isEdit = !empty($toy['id']);
 
-// Forbered subjects med fuld data til JS søgning (VIGTIGT)
+// Forbered subjects med fuld data til JS søgning
 $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 
@@ -23,6 +23,57 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
         
         <div class="card form-section-card shadow-sm border-0 mb-4">
             <div class="card-body">
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted mb-1">Universe</label>
+                        <select class="form-select" id="master_toy_universe_id" name="universe_id_display" required>
+                            <option value="">Select Universe...</option>
+                            <?php foreach($universes as $u): ?>
+                                <option value="<?= $u['id'] ?>" <?= ($selected_universe_id == $u['id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($u['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted mb-1">Manufacturer</label>
+                        <select class="form-select" id="master_toy_manufacturer_id" required>
+                            <option value="">Select Manufacturer...</option>
+                            <?php 
+                            // Tjek om vi skal auto-vælge (hvis der kun er 1 item i listen)
+                            $autoSelectMan = count($manufacturers) === 1; 
+                            
+                            foreach($manufacturers as $m): 
+                                $isSelected = ($toy && $toy['manufacturer_id'] == $m['id']) || $autoSelectMan;
+                            ?>
+                                <option value="<?= $m['id'] ?>" <?= $isSelected ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($m['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted mb-1">Toy Line</label>
+                        <select class="form-select" id="master_toy_toy_line_id" name="line_id" required>
+                            <option value="">Select Manufacturer first...</option>
+                            <?php 
+                            // Tjek om vi skal auto-vælge
+                            $autoSelectLine = count($lines) === 1;
+
+                            foreach($lines as $l): 
+                                $isSelected = ($toy && $toy['line_id'] == $l['id']) || $autoSelectLine;
+                            ?>
+                                <option value="<?= $l['id'] ?>" <?= $isSelected ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($l['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="row mb-3">
                     <div class="col-md-8">
                         <label class="form-label small text-muted mb-1">Toy Name</label>
@@ -36,17 +87,6 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Toy Line</label>
-                        <select class="form-select" name="line_id" required>
-                            <option value="">Select Line...</option>
-                            <?php foreach($lines as $l): ?>
-                                <option value="<?= $l['id'] ?>" <?= ($toy && $toy['line_id'] == $l['id']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($l['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
                         <label class="form-label small text-muted mb-1">Product Type</label>
                         <select class="form-select" name="product_type_id">
                             <option value="">Select Type...</option>
@@ -57,18 +97,17 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                             <?php endforeach; ?>
                         </select>
                     </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label small text-muted mb-1">Entertainment Source</label>
-                    <select class="form-select" name="entertainment_source_id">
-                        <option value="">None / Select Source...</option>
-                        <?php foreach($sources as $s): ?>
-                            <option value="<?= $s['id'] ?>" <?= ($toy && $toy['entertainment_source_id'] == $s['id']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($s['name']) ?> (<?= $s['type'] ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted mb-1">Entertainment Source</label>
+                        <select class="form-select" name="entertainment_source_id">
+                            <option value="">None / Select Source...</option>
+                            <?php foreach($sources as $s): ?>
+                                <option value="<?= $s['id'] ?>" <?= ($toy && $toy['entertainment_source_id'] == $s['id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($s['name']) ?> (<?= $s['type'] ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -103,7 +142,7 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
     <div class="modal-footer bg-light justify-content-between">
         <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-dark px-4" onclick="MasterToyMgr.submitForm()">
-            <?= $isEdit ? 'Update Toy' : 'Create Toy and Continue' ?>
+            <?= $isEdit ? 'Save Changes' : 'Create Toy and Continue' ?>
         </button>
     </div>
 </form>
@@ -112,30 +151,23 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
     <div class="card mb-2 item-row border-0 shadow-sm" style="background-color: #fff; border: 1px solid #dee2e6;">
         <div class="card-body p-3 position-relative">
             <button type="button" class="btn-close position-absolute top-0 end-0 m-2 small remove-row" aria-label="Remove" onclick="MasterToyMgr.removeItem(this)" style="font-size: 0.7rem; z-index: 5;"></button>
-            
             <div class="row g-2 align-items-end">
-                
                 <div class="col-md-6">
                     <label class="form-label small text-muted mb-1">Subject</label>
                     <input type="hidden" class="input-subject-id" name="items[UID][subject_id]">
-                    
                     <div class="subject-selector-wrapper position-relative">
                         <div class="subject-display-card d-flex align-items-center border rounded px-2 py-2 bg-white" 
                              onclick="MasterToyMgr.toggleSearch(this)"
                              style="cursor: pointer; min-height: 38px;">
-                            
                             <div class="me-2 text-muted d-flex align-items-center justify-content-center" style="width: 24px;">
                                 <i class="fas fa-user-circle fs-5 subject-icon"></i>
                             </div>
-                            
                             <div class="flex-grow-1 lh-1">
                                 <div class="subject-name fw-medium small text-truncate">Select Subject...</div>
                                 <div class="subject-meta text-muted" style="font-size: 0.7rem; display: none;"></div>
                             </div>
-                            
                             <i class="fas fa-chevron-down text-muted small ms-2"></i>
                         </div>
-
                         <div class="subject-search-dropdown position-absolute w-100 bg-white border rounded shadow-sm mt-1 d-none" style="z-index: 1050; top: 100%;">
                             <div class="p-2 border-bottom bg-light">
                                 <input type="text" class="form-control form-control-sm search-input" 
@@ -143,15 +175,13 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                                        onkeyup="MasterToyMgr.filterSubjects(this)"
                                        autocomplete="off">
                             </div>
-                            <div class="results-list overflow-auto" style="max-height: 200px;">
-                                </div>
+                            <div class="results-list overflow-auto" style="max-height: 200px;"></div>
                         </div>
                     </div>
                 </div>
-
                 <div class="col-md-4">
                     <label class="form-label small text-muted mb-1">Variant / Note</label>
-                    <input type="text" class="form-control form-control-sm input-variant" name="items[UID][variation_name]" placeholder="e.g. Red Cape">
+                    <input type="text" class="form-control form-control-sm input-variant" name="items[UID][variant_description]" placeholder="e.g. Red Cape">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">Qty</label>

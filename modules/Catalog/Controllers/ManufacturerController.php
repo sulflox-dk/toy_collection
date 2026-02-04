@@ -88,4 +88,29 @@ class ManufacturerController extends Controller {
         }
         exit;
     }
+
+    public function get_json() {
+        header('Content-Type: application/json');
+        $universeId = isset($_GET['universe_id']) ? (int)$_GET['universe_id'] : 0;
+
+        if (!$universeId) {
+            echo json_encode([]);
+            exit;
+        }
+
+        // RETTELSEN ER HER: Vi skal hente ['data'] fra resultatet
+        $result = $this->model->getFiltered(['universe_id' => $universeId]);
+        $manufacturers = $result['data'] ?? []; // <--- VIGTIGT!
+        
+        $simpleList = [];
+        foreach ($manufacturers as $m) {
+            $simpleList[] = [
+                'id' => $m['id'],
+                'name' => $m['name']
+            ];
+        }
+
+        echo json_encode($simpleList);
+        exit;
+    }
 }

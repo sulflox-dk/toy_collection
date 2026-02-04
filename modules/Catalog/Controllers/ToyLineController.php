@@ -112,4 +112,24 @@ class ToyLineController extends Controller {
         }
         exit;
     }
+
+    public function get_json() {
+        header('Content-Type: application/json');
+        $manId = isset($_GET['manufacturer_id']) ? (int)$_GET['manufacturer_id'] : 0;
+
+        if (!$manId) {
+            echo json_encode([]);
+            exit;
+        }
+
+        $result = $this->model->getFiltered(['manufacturer_id' => $manId]);
+        $data = $result['data'] ?? [];
+        $json = [];
+        foreach($data as $row) {
+            $json[] = ['id' => $row['id'], 'name' => $row['name']];
+        }
+
+        echo json_encode($json);
+        exit;
+    }
 }
