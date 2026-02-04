@@ -46,7 +46,6 @@ const MasterToyMgr = {
     },
 
     loadPage: function(page) {
-        // ... (uændret)
         const params = new URLSearchParams({
             module: 'Catalog', 
             controller: 'MasterToy', 
@@ -70,7 +69,6 @@ const MasterToyMgr = {
     },
 
     attachGridListeners: function() {
-        // ... (uændret)
         document.querySelectorAll('.btn-delete').forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = this.closest('tr').dataset.id;
@@ -87,10 +85,11 @@ const MasterToyMgr = {
             });
         });
 
+        // MEDIA MANAGER KNAP (Opdateret)
         document.querySelectorAll('.btn-media').forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = this.closest('tr').dataset.id;
-                alert('Media manager kommer i Step 3 for ID: ' + id);
+                MasterToyMgr.openMedia(id);
             });
         });
     },
@@ -107,20 +106,45 @@ const MasterToyMgr = {
         App.openModal('Catalog', 'MasterToy', 'modal_step2', { id: id });
     },
 
+    // --- NY FUNKTION: Åbner Media Modal ---
+    openMedia: function(id, mode = 'edit') {
+        const modalEl = document.getElementById('appModal');
+        const modalBody = modalEl.querySelector('.modal-content');
+        
+        // Vis modal (hvis den ikke allerede er åben)
+        const bsModal = new bootstrap.Modal(modalEl);
+        bsModal.show();
+        
+        // Vis loading spinner
+        modalBody.innerHTML = '<div class="p-5 text-center"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+
+        fetch(`${this.baseUrl}?module=Catalog&controller=MasterToy&action=modal_media&id=${id}&mode=${mode}`)
+            .then(res => res.text())
+            .then(html => {
+                modalBody.innerHTML = html;
+                
+                // Initialiser Media Uploader scriptet
+                // (Dette script ligger i assets/js/collection-media.js)
+                if(App.initMediaUploads) {
+                    App.initMediaUploads();
+                } else {
+                    console.error('App.initMediaUploads not found. Is collection-media.js loaded?');
+                }
+            });
+    },
+
     // --- FORM LOGIC ---
     
     initForm: function() {
         console.log('Initializing Master Toy Form...');
         
-        // Start listeners for Universe/Manufacturer select
-        this.initStep2Listeners(); // <--- NYT KALD
+        this.initStep2Listeners(); 
 
         const container = document.getElementById('itemsContainer');
         const template = document.getElementById('itemRowTemplate');
 
         if (!container || !template) return;
 
-        // 1. Hent data fra dataset
         let items = [];
         try {
             items = JSON.parse(container.dataset.items || '[]');
@@ -129,14 +153,10 @@ const MasterToyMgr = {
             console.error('JSON parse error', e);
         }
 
-        // 2. Render eksisterende items
         container.innerHTML = '';
         items.forEach(item => this.renderRow(item));
         this.updateUI();
     },
-
-    // --- NY FUNKTION: Håndterer Universe -> Manufacturer -> ToyLine ---
-    // I assets/js/master_toy_manager.js
 
     initStep2Listeners: function() {
         const uniSelect = document.getElementById('master_toy_universe_id');
@@ -145,10 +165,8 @@ const MasterToyMgr = {
 
         if (!uniSelect || !manSelect || !lineSelect) return;
 
-        // 1. Universe Change -> Load Manufacturers
         uniSelect.addEventListener('change', function() {
             const universeId = this.value;
-            
             manSelect.innerHTML = '<option value="">Loading...</option>';
             lineSelect.innerHTML = '<option value="">Select Manufacturer first...</option>';
 
@@ -162,10 +180,9 @@ const MasterToyMgr = {
                         });
                         manSelect.innerHTML = html;
 
-                        // --- UX FEATURE: Auto-select hvis kun 1 mulighed ---
+                        // Auto-select hvis kun 1 mulighed
                         if (data.length === 1) {
                             manSelect.value = data[0].id;
-                            // VIGTIGT: Trigger change event manuelt så næste dropdown (Lines) loader
                             manSelect.dispatchEvent(new Event('change'));
                         }
                     });
@@ -174,7 +191,6 @@ const MasterToyMgr = {
             }
         });
 
-        // 2. Manufacturer Change -> Load Toy Lines
         manSelect.addEventListener('change', function() {
             const manufacturerId = this.value;
             lineSelect.innerHTML = '<option value="">Loading...</option>';
@@ -189,11 +205,9 @@ const MasterToyMgr = {
                         });
                         lineSelect.innerHTML = html;
 
-                        // --- UX FEATURE: Auto-select hvis kun 1 mulighed ---
+                        // Auto-select hvis kun 1 mulighed
                         if (data.length === 1) {
                             lineSelect.value = data[0].id;
-                            // Vi behøver ikke trigger change her, da det er sidste led i kæden,
-                            // men det skader ikke hvis vi senere tilføjer mere logik.
                         }
                     });
             } else {
@@ -202,7 +216,6 @@ const MasterToyMgr = {
         });
     },
 
-    // ... (Behold addItem, removeItem, renderRow, updateUI, toggleSearch, osv. uændret) ...
     addItem: function() {
         this.renderRow({ quantity: 1 });
         this.updateUI();
@@ -231,7 +244,10 @@ const MasterToyMgr = {
             el.name = el.name.replace('UID', uid);
         });
 
-        if (item.variant_description) row.querySelector('.input-variant').value = item.variant_description;
+        // Understøtter både nyt og gammelt feltnavn
+        const variantText = item.variant_description || '';
+        row.querySelector('.input-variant').value = variantText;
+        
         if (item.quantity) row.querySelector('.input-qty').value = item.quantity;
 
         const subjectInput = row.querySelector('.input-subject-id');
@@ -242,6 +258,13 @@ const MasterToyMgr = {
             const subject = this.allSubjects.find(s => s.id == item.subject_id);
             if(subject) {
                 this.updateSubjectDisplay(displayCard, subject);
+            } else if (item.subject_name) {
+                // Fallback hvis vi har data fra item, men ikke hele listen
+                this.updateSubjectDisplay(displayCard, {
+                    name: item.subject_name,
+                    type: item.subject_type || 'Item',
+                    faction: ''
+                });
             }
         }
 
@@ -258,7 +281,6 @@ const MasterToyMgr = {
     },
 
     toggleSearch: function(cardEl) {
-        // ... (Behold din toggleSearch logik uændret)
         const wrapper = cardEl.closest('.subject-selector-wrapper');
         const dropdown = wrapper.querySelector('.subject-search-dropdown');
         const input = dropdown.querySelector('.search-input');
@@ -289,7 +311,6 @@ const MasterToyMgr = {
     },
 
     filterSubjects: function(inputEl) {
-        // ... (Behold filterSubjects logik uændret)
         const term = inputEl.value.toLowerCase();
         const listEl = inputEl.closest('.subject-search-dropdown').querySelector('.results-list');
         
@@ -321,7 +342,6 @@ const MasterToyMgr = {
     },
 
     selectSubject: function(itemEl, id) {
-        // ... (Behold uændret)
         const wrapper = itemEl.closest('.subject-selector-wrapper');
         const input = wrapper.parentNode.querySelector('.input-subject-id');
         const displayCard = wrapper.querySelector('.subject-display-card');
@@ -338,7 +358,6 @@ const MasterToyMgr = {
     },
 
     updateSubjectDisplay: function(cardEl, subject) {
-        // ... (Behold uændret)
         const nameEl = cardEl.querySelector('.subject-name');
         const metaEl = cardEl.querySelector('.subject-meta');
         const iconEl = cardEl.querySelector('.subject-icon');
@@ -359,7 +378,6 @@ const MasterToyMgr = {
     },
 
     submitForm: function() {
-        // ... (Behold uændret)
         const form = document.getElementById('masterToyForm');
         if(!form.checkValidity()) {
             form.reportValidity();
@@ -368,6 +386,7 @@ const MasterToyMgr = {
 
         const formData = new FormData(form);
         const id = formData.get('id');
+        // Brug 'create' hvis ingen ID (ny), 'update' hvis ID findes
         const action = id ? 'update' : 'create';
 
         const btn = form.querySelector('button[onclick*="submitForm"]');
@@ -392,10 +411,10 @@ const MasterToyMgr = {
                 this.loadPage(1);
 
                 if(!id) {
+                    // FLOW ÆNDRING: Hvis det er NY oprettelse
+                    // Hop direkte til Media Manager uden at spørge (ligesom Collection flow)
                     setTimeout(() => {
-                        if(confirm('Toy created! Do you want to upload photos now?')) {
-                            alert('Media Modal TODO');
-                        }
+                        MasterToyMgr.openMedia(data.id, 'create');
                     }, 500);
                 }
             } else {
@@ -417,7 +436,6 @@ const MasterToyMgr = {
     },
 
     executeDelete: function(id) {
-        // ... (Behold uændret)
         const formData = new FormData();
         formData.append('id', id);
         

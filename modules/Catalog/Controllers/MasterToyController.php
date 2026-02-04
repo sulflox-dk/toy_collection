@@ -202,4 +202,37 @@ class MasterToyController extends Controller {
             return ['success' => true, 'id' => $id];
         });
     }
+
+    public function modal_media() {
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        if (!$id) die("Missing ID");
+
+        // 1. Hent Master Toy
+        $toy = $this->model->getById($id);
+        if (!$toy) die("Toy not found");
+
+        // 2. Hent Items
+        $items = $this->model->getItems($id);
+
+        // 3. Hent Tags og Eksisterende Billeder via MediaModel
+        // (Vi opretter en instans her, da den ikke er injected globalt)
+        $mediaModel = new \CollectionApp\Modules\Media\Models\MediaModel();
+        
+        $availableTags = $mediaModel->getMediaTags();
+        
+        // Hent billeder for parent (æsken)
+        $toy['images'] = $mediaModel->getImages('catalog_parent', $id);
+
+        // Hent billeder for hver item (figurer/dele)
+        foreach($items as &$item) {
+            $item['images'] = $mediaModel->getImages('catalog_child', $item['id']);
+        }
+
+        $this->view->renderPartial('master_toy_step3_images', [
+            'toy' => $toy,
+            'items' => $items,
+            'available_tags' => $availableTags,
+            'mode' => $_GET['mode'] ?? 'edit'
+        ], 'Catalog');
+    }
 }
