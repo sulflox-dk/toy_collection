@@ -139,6 +139,47 @@ class MediaModel {
     }
 
     /**
+     * HjÊlper til at finde alle media_id'er for en given entity type
+     */
+    public function getMediaIdsForEntity(string $type, int $entityId): array {
+        $table = '';
+        $col = '';
+
+        switch ($type) {
+            // Collection
+            case 'collection_parent':
+                $table = 'collection_toy_media_map';
+                $col = 'collection_toy_id';
+                break;
+            case 'collection_child':
+                $table = 'collection_toy_item_media_map'; 
+                $col = 'collection_toy_item_id';
+                break;
+                
+            // Catalog / Master
+            case 'catalog_parent':
+                $table = 'master_toy_media_map';
+                $col = 'master_toy_id';
+                break;
+            case 'catalog_child':
+                $table = 'master_toy_item_media_map';
+                $col = 'master_toy_item_id';
+                break;
+                
+            default:
+                return [];
+        }
+
+        // Vi henter kun ID'erne
+        $rows = $this->db->query(
+            "SELECT media_file_id FROM $table WHERE $col = :id", 
+            ['id' => $entityId]
+        )->fetchAll();
+
+        return array_column($rows, 'media_file_id');
+    }
+
+    /**
      * Sletter en medie-fil b√•de fra databasen og fra filsystemet
      */
     public function delete(int $mediaId) {

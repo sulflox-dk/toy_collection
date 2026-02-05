@@ -110,13 +110,39 @@ class MasterToyModel {
             throw new \Exception("Cannot delete Toy. It is used in $usage Collection entries.");
         }
 
-        // Slet items først (Cascade burde gøre det, men vi er eksplicitte)
-        $this->db->query("DELETE FROM master_toy_items WHERE master_toy_id = :id", ['id' => $id]);
-        
-        // Slet medie-links
-        $this->db->query("DELETE FROM master_toy_media_map WHERE master_toy_id = :id", ['id' => $id]);
+        $mediaModel = new \CollectionApp\Modules\Media\Models\MediaModel();
 
+        // 1. SLET CHILD ITEMS + MEDIER
+        $items = $this->getItems($id); // Bruger getItems() i MasterToyModel
+        
+        foreach ($items as $item) {
+            $mediaIds = $mediaModel->getMediaIdsForEntity('catalog_child', $item['id']);
+            
+            foreach ($mediaIds as $mid) {
+                // A. Slet relation i map-tabel
+                $this->db->query("DELETE FROM master_toy_item_media_map WHERE media_file_id = :mid", ['mid' => $mid]);
+                
+                // B. Slet fil
+                $mediaModel->delete($mid);
+            }
+            
+            // C. Slet selve item-rækken
+            $this->db->query("DELETE FROM master_toy_items WHERE id = :id", ['id' => $item['id']]);
+        }
+
+        // 2. SLET MASTER TOY MEDIER (Parent)
+        $parentMediaIds = $mediaModel->getMediaIdsForEntity('catalog_parent', $id);
+        foreach ($parentMediaIds as $mid) {
+            // A. Slet relation
+            $this->db->query("DELETE FROM master_toy_media_map WHERE media_file_id = :mid", ['mid' => $mid]);
+            
+            // B. Slet fil
+            $mediaModel->delete($mid);
+        }
+
+        // 3. SLET MASTER TOY DATA (Hoved-rækken)
         return $this->db->query("DELETE FROM master_toys WHERE id = :id", ['id' => $id]);
+
     }
 
     public function getById($id) {

@@ -87,7 +87,10 @@
                             <button class="btn btn-sm btn-outline-secondary btn-media" title="Manage Photos">
                                 <i class="fas fa-camera"></i>
                             </button>
-                            </div>
+                            <button class="btn btn-sm btn-outline-danger btn-delete" title="Delete Toy & Images">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

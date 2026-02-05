@@ -1,6 +1,6 @@
 const CollectionMgr = {
     init: function() {
-        this.baseUrl = App.baseUrl;
+        this.baseUrl = App.baseUrl; // Sikrer at vi har base URL
         this.container = document.getElementById('collectionGridContainer');
         
         // Element references
@@ -12,9 +12,74 @@ const CollectionMgr = {
         this.fSource = document.getElementById('filterPurchaseSource');
         this.fStatus = document.getElementById('filterStatus');
 
+        // 1. Start lyttere til filtre
         this.attachFilterListeners();
+
+        // 2. Start "Global" lytter til grid-knapper (Event Delegation)
+        // Dette erstatter den gamle attachGridListeners og virker altid!
+        if (this.container) {
+            this.container.addEventListener('click', (e) => {
+                // SLET KNAP
+                const delBtn = e.target.closest('.btn-delete');
+                if (delBtn) {
+                    this.handleDelete(delBtn);
+                    return; // Stop her
+                }
+
+                // EDIT KNAP
+                const editBtn = e.target.closest('.btn-edit');
+                if (editBtn) {
+                    const id = editBtn.closest('tr').dataset.id;
+                    if(window.CollectionForm) CollectionForm.openEditModal(id);
+                    return;
+                }
+
+                // MEDIA KNAP
+                const mediaBtn = e.target.closest('.btn-media');
+                if (mediaBtn) {
+                    const id = mediaBtn.closest('tr').dataset.id;
+                    if(window.CollectionForm) CollectionForm.openMediaModal(id);
+                    return;
+                }
+            });
+        }
+
         // Load første side ved start
         this.loadPage(1);
+    },
+
+    // Ny separat funktion til sletning
+    handleDelete: function(btn) {
+        if(!confirm('Are you sure? This will delete the toy, all its items, and ALL associated photos permanently.')) {
+            return;
+        }
+
+        const tr = btn.closest('tr');
+        const id = tr.dataset.id;
+        
+        // Visuel feedback (gør rækken utydelig)
+        tr.style.opacity = '0.3';
+
+        fetch(`${this.baseUrl}?module=Collection&controller=Toy&action=delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${id}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                App.showToast('Item deleted successfully!');
+                this.loadPage(1); // Genindlæs listen
+            } else {
+                tr.style.opacity = '1'; 
+                alert('Error deleting: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            tr.style.opacity = '1';
+            console.error(err);
+            alert('System error occurred.');
+        });
     },
 
     attachFilterListeners: function() {
@@ -66,46 +131,21 @@ const CollectionMgr = {
                 .then(html => {
                     this.container.innerHTML = html;
                     this.container.style.opacity = '1';
-                    this.attachGridListeners(); 
+                    // Vi behøver ikke kalde attachGridListeners længere, 
+                    // da "init" lytteren fanger alt!
                 });
         }
-    },
-
-    attachGridListeners: function() {
-        // Rediger knap (Blyant) - Bruger nu CollectionForm
-        document.querySelectorAll('.btn-edit').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const id = this.closest('tr').dataset.id;
-                if(window.CollectionForm) {
-                    CollectionForm.openEditModal(id);
-                }
-            });
-        });
-
-        // Media knap (Kamera) - Bruger nu CollectionForm
-        document.querySelectorAll('.btn-media').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const id = this.closest('tr').dataset.id;
-                if(window.CollectionForm) {
-                    CollectionForm.openMediaModal(id);
-                }
-            });
-        });
     }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
     CollectionMgr.init();
     
-    // Her "hacker" vi CollectionForm til kun at reloade griddet i stedet for hele siden
+    // Hack til reload efter save
     if (window.CollectionForm) {
         window.CollectionForm.handleSaveSuccess = function(data) {
             App.showToast('Saved successfully!');
-            // Reload kun listen, ikke hele siden
             CollectionMgr.loadPage(1); 
-            
-            // Hvis modalen stadig er åben (ved fejl eller lignende), luk den evt.
-            // Men typisk håndterer App.js lukningen eller reload af modal-indhold
         };
     }
 });

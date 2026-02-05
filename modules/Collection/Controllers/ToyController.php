@@ -292,4 +292,27 @@ class ToyController extends Controller {
         $this->view->renderPartial('grid', $data, 'Collection');
     }
 
+    public function delete() {
+        // Tjek at det er et POST kald
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405); // Method Not Allowed
+            exit;
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        if (!$id) {
+            echo json_encode(['success' => false, 'error' => 'Missing ID']);
+            exit;
+        }
+
+        try {
+            $this->toyModel->delete($id);
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            // Log evt. fejlen her
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
 }

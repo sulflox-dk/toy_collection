@@ -178,6 +178,45 @@ class ToyModel {
         return $this->db->query("DELETE FROM collection_toy_items WHERE id = :id", ['id' => $itemId]);
     }
 
+    // modules/Collection/Models/ToyModel.php
+
+    public function delete(int $id) {
+        // Initialiser MediaModel
+        $mediaModel = new \CollectionApp\Modules\Media\Models\MediaModel();
+
+        // 1. SLET CHILD ITEMS + MEDIER
+        $items = $this->getChildItems($id);
+        
+        foreach ($items as $item) {
+            // Hent medie-ID'er
+            $mediaIds = $mediaModel->getMediaIdsForEntity('collection_child', $item['id']);
+            
+            foreach ($mediaIds as $mid) {
+                // A. Slet først relationen i map-tabellen (Vigtigt når du ikke bruger CASCADE!)
+                $this->db->query("DELETE FROM collection_toy_item_media_map WHERE media_file_id = :mid", ['mid' => $mid]);
+                
+                // B. Slet selve filen og media_files rækken
+                $mediaModel->delete($mid);
+            }
+
+            // C. Slet selve item-rækken i databasen (Dataen)
+            $this->db->query("DELETE FROM collection_toy_items WHERE id = :id", ['id' => $item['id']]);
+        }
+
+        // 2. SLET PARENT TOY MEDIER
+        $parentMediaIds = $mediaModel->getMediaIdsForEntity('collection_parent', $id);
+        foreach ($parentMediaIds as $mid) {
+            // A. Slet relationen
+            $this->db->query("DELETE FROM collection_toy_media_map WHERE media_file_id = :mid", ['mid' => $mid]);
+            
+            // B. Slet filen
+            $mediaModel->delete($mid);
+        }
+
+        // 3. SLET PARENT TOY DATA (Hoved-rækken)
+        $this->db->query("DELETE FROM collection_toys WHERE id = :id", ['id' => $id]);
+    }
+
     public function deleteMedia(int $mediaId) {
         $mediaModel = new \CollectionApp\Modules\Media\Models\MediaModel();
         $success = $mediaModel->delete($mediaId);
