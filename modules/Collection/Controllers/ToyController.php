@@ -6,6 +6,10 @@ use CollectionApp\Kernel\Database; // NY: For at kunne hente Enums
 use CollectionApp\Modules\Collection\Models\ToyModel;
 use CollectionApp\Modules\Catalog\Models\CatalogModel;
 use CollectionApp\Modules\Media\Models\MediaModel;
+use CollectionApp\Modules\Catalog\Models\ToyLineModel;
+use CollectionApp\Modules\Universe\Models\UniverseModel;
+use CollectionApp\Modules\Universe\Models\EntertainmentSourceModel;
+use CollectionApp\Modules\Collection\Models\StorageModel;
 
 class ToyController extends Controller {
 
@@ -240,6 +244,52 @@ class ToyController extends Controller {
     
     private function nullIfEmpty($val) {
         return ($val === '' || $val === 'Select...') ? null : $val;
+    }
+
+    public function index() {
+        if (isset($_GET['ajax_grid'])) {
+            $this->renderGrid();
+            exit;
+        }
+
+        // Hent data til filtre
+        $uniModel = new UniverseModel();
+        $lineModel = new ToyLineModel();
+        $sourceModel = new EntertainmentSourceModel();
+        $storageModel = new StorageModel();
+        $db = Database::getInstance();
+
+        $this->view->render('index', [ // Bemærk filnavnet 'index' (ikke toy_index, hvis vi følger alm. struktur i mappen)
+            'title' => 'My Collection',
+            'universes' => $uniModel->getAllSimple(),
+            'lines' => $lineModel->getAllSimple(),
+            'ent_sources' => $sourceModel->getAllSimple(),
+            'storage_units' => $storageModel->getAllSimple(),
+            'purchase_sources' => $db->query("SELECT * FROM sources ORDER BY name")->fetchAll(),
+            'statuses' => $db->getEnumValues('collection_toys', 'acquisition_status'),
+            // Scripts: Vi genbruger collection-form.js (til add/edit) og collection-media.js
+            'scripts' => [
+                'assets/js/collection_manager.js', 
+                'assets/js/collection-form.js', 
+                'assets/js/collection-media.js'
+            ]
+        ], 'Collection');
+    }
+
+    private function renderGrid() {
+        $page = (int)($_GET['page'] ?? 1);
+        $filters = [
+            'universe_id' => $_GET['universe_id'] ?? '',
+            'line_id'     => $_GET['line_id'] ?? '',
+            'entertainment_source_id' => $_GET['ent_source_id'] ?? '',
+            'storage_id'  => $_GET['storage_id'] ?? '',
+            'source_id'   => $_GET['source_id'] ?? '', // Purchase Source
+            'acquisition_status' => $_GET['status'] ?? '',
+            'search'      => $_GET['search'] ?? ''
+        ];
+
+        $data = $this->toyModel->getFiltered($filters, $page, 20);
+        $this->view->renderPartial('grid', $data, 'Collection');
     }
 
 }

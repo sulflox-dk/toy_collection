@@ -189,4 +189,98 @@ class ToyModel {
         }
         return false;
     }
+
+    public function getFiltered($filters = [], $page = 1, $perPage = 20) {
+        $offset = ($page - 1) * $perPage;
+        $params = [];
+        $where = [];
+
+        // Hoved-Query: Joiner Collection -> Master -> Stamdata
+        $sql = "SELECT ct.*, 
+                       mt.name as toy_name,
+                       mt.release_year as release_year,
+                       mt.wave_number as wave_number,
+                       pt.type_name as product_type,
+                       tl.name as line_name,
+                       m.name as manufacturer_name,
+                       su.box_code,
+                       su.name as storage_name,
+                       ps.name as purchase_source_name,
+                       mf.file_path as image_path,
+                       (SELECT COUNT(*) FROM collection_toy_items WHERE collection_toy_id = ct.id) as item_count,
+                       es.name as source_name,
+                       es.type as source_type,
+                       es.release_year as source_year
+                FROM collection_toys ct
+                JOIN master_toys mt ON ct.master_toy_id = mt.id
+                LEFT JOIN toy_lines tl ON mt.line_id = tl.id
+                LEFT JOIN manufacturers m ON tl.manufacturer_id = m.id
+                LEFT JOIN product_types pt ON mt.product_type_id = pt.id
+                LEFT JOIN entertainment_sources es ON mt.entertainment_source_id = es.id
+                LEFT JOIN storage_units su ON ct.storage_id = su.id
+                LEFT JOIN sources ps ON ct.source_id = ps.id
+                
+                -- Hent KUN Collection Image (ikke master image)
+                LEFT JOIN collection_toy_media_map ctmm ON ct.id = ctmm.collection_toy_id AND ctmm.is_main = 1
+                LEFT JOIN media_files mf ON ctmm.media_file_id = mf.id";
+
+        // --- FILTERS ---
+
+        // Master Data Filters
+        if (!empty($filters['universe_id'])) {
+            $where[] = "tl.universe_id = :uid";
+            $params['uid'] = $filters['universe_id'];
+        }
+        if (!empty($filters['line_id'])) {
+            $where[] = "mt.line_id = :lid";
+            $params['lid'] = $filters['line_id'];
+        }
+        if (!empty($filters['entertainment_source_id'])) {
+            $where[] = "mt.entertainment_source_id = :esid";
+            $params['esid'] = $filters['entertainment_source_id'];
+        }
+
+        // Collection Data Filters
+        if (!empty($filters['storage_id'])) {
+            $where[] = "ct.storage_id = :stid";
+            $params['stid'] = $filters['storage_id'];
+        }
+        if (!empty($filters['source_id'])) { // Purchase Source
+            $where[] = "ct.source_id = :srcid";
+            $params['srcid'] = $filters['source_id'];
+        }
+        if (!empty($filters['acquisition_status'])) {
+            $where[] = "ct.acquisition_status = :acq";
+            $params['acq'] = $filters['acquisition_status'];
+        }
+
+        // Search (Søger i både navn, ID og box code)
+        if (!empty($filters['search'])) {
+            $term = '%' . $filters['search'] . '%';
+            $where[] = "(mt.name LIKE :s1 OR ct.personal_toy_id LIKE :s2 OR su.box_code LIKE :s3)";
+            $params['s1'] = $term;
+            $params['s2'] = $term;
+            $params['s3'] = $term;
+        }
+
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+
+        // Count Total
+        $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table";
+        $total = $this->db->query($countSql, $params)->fetchColumn();
+
+        // Sort & Limit (Sorterer nyeste først som standard i collection)
+        $sql .= " ORDER BY mt.name ASC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+
+        $results = $this->db->query($sql, $params)->fetchAll();
+
+        return [
+            'data' => $results,
+            'total' => $total,
+            'pages' => ceil($total / $perPage),
+            'current_page' => $page
+        ];
+    }
 }
