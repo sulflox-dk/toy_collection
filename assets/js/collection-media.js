@@ -138,10 +138,9 @@ App.initMediaUploads = function () {
         if (imgEl) {
             imgEl.style.cursor = 'zoom-in';
             
-            let hoverTimeout; // Variabel til at holde styr på timeren
+            let hoverTimeout; 
 
             imgEl.addEventListener('mouseenter', function() {
-                // Vi starter en timer på 600ms (du kan ændre tallet hvis det skal være hurtigere/langsommere)
                 hoverTimeout = setTimeout(() => {
                     const bigImg = document.createElement('img');
                     bigImg.src = this.src;
@@ -152,11 +151,7 @@ App.initMediaUploads = function () {
             });
 
             imgEl.addEventListener('mouseleave', function() {
-                // VIGTIGT: Stop timeren med det samme! 
-                // Hvis man flytter musen væk inden de 600ms, sker der ingenting.
                 clearTimeout(hoverTimeout);
-
-                // Fjern billedet, hvis det nåede at komme frem
                 const bigImg = document.getElementById('active-hover-zoom');
                 if (bigImg) bigImg.remove();
             });
@@ -176,22 +171,21 @@ App.initMediaUploads = function () {
         try {
             const mediaData = JSON.parse(containerEl.dataset.existingMedia);
             if (mediaData.parent && mediaData.parent.length > 0) {
-                const pInput = containerEl.querySelector(
-                    '.upload-input[data-context="collection_parent"]',
-                );
-                const pContainer = document.getElementById(
-                    `preview-parent-${pInput.dataset.id}`,
-                );
-                if (pContainer)
-                    mediaData.parent.forEach((img) =>
-                        createMediaRow(pContainer, img),
-                    );
+                // UPDATE: Tjekker nu for både collection_parent OG catalog_parent
+                let pInput = containerEl.querySelector('.upload-input[data-context="collection_parent"]');
+                if (!pInput) {
+                    pInput = containerEl.querySelector('.upload-input[data-context="catalog_parent"]');
+                }
+
+                if (pInput) {
+                    const pContainer = document.getElementById(`preview-parent-${pInput.dataset.id}`);
+                    if (pContainer)
+                        mediaData.parent.forEach((img) => createMediaRow(pContainer, img));
+                }
             }
             if (mediaData.items) {
                 mediaData.items.forEach((item) => {
-                    const cContainer = document.getElementById(
-                        `preview-child-${item.id}`,
-                    );
+                    const cContainer = document.getElementById(`preview-child-${item.id}`);
                     if (cContainer && item.images)
                         item.images.forEach((img) => createMediaRow(cContainer, img));
                 });
@@ -228,13 +222,17 @@ App.initMediaUploads = function () {
             .then((res) => res.json())
             .then((data) => {
                 if (data.success) {
-                    const viewType =
-                        context === 'collection_parent' ? 'parent' : 'child';
-                    const container = document.getElementById(
-                        `preview-${viewType}-${id}`,
-                    );
+                    // UPDATE: Håndterer nu begge typer parent contexts
+                    const viewType = (context === 'collection_parent' || context === 'catalog_parent') ? 'parent' : 'child';
+                    const container = document.getElementById(`preview-${viewType}-${id}`);
                     if (container) createMediaRow(container, data);
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
                 }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Upload error occurred');
             })
             .finally(() => {
                 if (icon) icon.className = 'fas fa-plus me-1';
@@ -254,7 +252,6 @@ App.deleteMedia = function (mediaId, btnElement) {
         .then((res) => res.json())
         .then((data) => {
             if (data.success) {
-                // Fjern hele rækken med en lille animation
                 const row = btnElement.closest('.media-preview-row');
                 row.style.opacity = '0';
                 setTimeout(() => row.remove(), 300);
