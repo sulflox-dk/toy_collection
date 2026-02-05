@@ -133,9 +133,44 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
              data-subjects='<?= $jsonSubjects ?>'>
         </div>
         
-        <button type="button" class="btn btn-outline-dark w-100 py-2 border-dashed" onclick="MasterToyMgr.addItem()">
-            <i class="fas fa-plus me-2"></i> Add Item to this Toy
-        </button>
+
+        <div class="row g-2 mt-3">
+            <div class="col-6">
+                <button type="button" class="btn btn-outline-dark w-100 py-2 border-dashed" onclick="MasterToyMgr.addItem()">
+                    <i class="fas fa-plus me-2"></i> Add Single Item
+                </button>
+            </div>
+            <div class="col-6">
+                <button type="button" class="btn btn-outline-dark w-100 py-2 border-dashed" onclick="MasterToyMgr.openMultiAdd()">
+                    <i class="fas fa-list-check me-2"></i> Add Multiple Items
+                </button>
+            </div>
+        </div>
+
+        <div id="multiAddOverlay" class="d-none position-absolute top-0 start-0 w-100 h-100 bg-light" style="z-index: 1060;">
+            <div class="d-flex flex-column h-100 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="fas fa-list-check me-2"></i>Select Items to Add</h5>
+                    <button type="button" class="btn-close" onclick="MasterToyMgr.closeMultiAdd()"></button>
+                </div>
+                
+                <div class="input-group mb-3">
+                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="multiAddSearch" class="form-control" placeholder="Search subjects (e.g. 'Darth Vader')..." onkeyup="MasterToyMgr.filterMultiList(this.value)">
+                </div>
+
+                <div class="flex-grow-1 border rounded bg-white overflow-auto p-2" id="multiAddList">
+                    <div class="text-center text-muted mt-5">Type to search for subjects...</div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                    <span class="text-muted small" id="multiAddCount">0 selected</span>
+                    <button type="button" class="btn btn-success px-4" onclick="MasterToyMgr.addSelectedItems()">
+                        <i class="fas fa-plus me-2"></i>Add Checked
+                    </button>
+                </div>
+            </div>
+        </div>
 
     </div>
 

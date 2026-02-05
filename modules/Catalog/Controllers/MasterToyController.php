@@ -48,7 +48,10 @@ class MasterToyController extends Controller {
             'lines' => $lines,
             'sources' => $sources,
             'initialData' => $initialData,
-            'scripts' => ['assets/js/master_toy_manager.js'] 
+            'scripts' => [
+                'assets/js/collection-media.js', 
+                'assets/js/master_toy_manager.js'
+            ] 
         ], 'Catalog');
     }
     

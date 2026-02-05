@@ -449,7 +449,116 @@ const MasterToyMgr = {
                 alert(data.error);
             }
         });
-    }
+    },
+
+    openMultiAdd: function() {
+        const overlay = document.getElementById('multiAddOverlay');
+        const input = document.getElementById('multiAddSearch');
+        const list = document.getElementById('multiAddList');
+        
+        if (!overlay) return;
+
+        overlay.classList.remove('d-none');
+        input.value = '';
+        input.focus();
+        
+        // Nulstil liste
+        list.innerHTML = '<div class="text-center text-muted mt-5">Type to search for subjects...</div>';
+        this.updateMultiCount();
+    },
+
+    closeMultiAdd: function() {
+        const overlay = document.getElementById('multiAddOverlay');
+        if (overlay) overlay.classList.add('d-none');
+    },
+
+    filterMultiList: function(term) {
+        const list = document.getElementById('multiAddList');
+        term = term.toLowerCase();
+
+        if (term.length < 2) {
+            if(term.length === 0) list.innerHTML = '<div class="text-center text-muted mt-5">Type to search for subjects...</div>';
+            return;
+        }
+
+        const matches = this.allSubjects.filter(s => {
+            return s.name.toLowerCase().includes(term) || 
+                   (s.type && s.type.toLowerCase().includes(term));
+        }).slice(0, 100); // Begræns til 100 resultater for performance
+
+        if (matches.length === 0) {
+            list.innerHTML = '<div class="text-center text-muted mt-3">No matches found.</div>';
+            return;
+        }
+
+        let html = '<div class="list-group list-group-flush">';
+        matches.forEach(s => {
+            const metaParts = [];
+            if(s.type) metaParts.push(s.type);
+            if(s.faction) metaParts.push(s.faction);
+            
+            // Ikon baseret på type
+            let iconClass = 'fas fa-cube';
+            if(s.type === 'Character') iconClass = 'fas fa-user';
+            else if(s.type === 'Packaging') iconClass = 'fas fa-box-open';
+            else if(s.type === 'Accessory') iconClass = 'fas fa-wrench';
+
+            html += `
+                <label class="list-group-item d-flex gap-3 align-items-center" style="cursor:pointer;">
+                    <input class="form-check-input flex-shrink-0" type="checkbox" value="${s.id}" style="width: 1.3em; height: 1.3em;" onchange="MasterToyMgr.updateMultiCount()">
+                    <div class="d-flex align-items-center w-100 justify-content-between">
+                        <div>
+                            <div class="fw-bold text-dark mb-0">${s.name}</div>
+                            <small class="text-muted">${metaParts.join(' ? ')}</small>
+                        </div>
+                        <i class="${iconClass} text-muted opacity-25 fs-4"></i>
+                    </div>
+                </label>
+            `;
+        });
+        html += '</div>';
+        list.innerHTML = html;
+    },
+
+    updateMultiCount: function() {
+        const countSpan = document.getElementById('multiAddCount');
+        const checked = document.querySelectorAll('#multiAddList input[type="checkbox"]:checked').length;
+        if(countSpan) countSpan.textContent = checked + ' selected';
+    },
+
+    addSelectedItems: function() {
+        const checkboxes = document.querySelectorAll('#multiAddList input[type="checkbox"]:checked');
+        
+        if (checkboxes.length === 0) {
+            alert('Please select at least one item.');
+            return;
+        }
+
+        checkboxes.forEach(cb => {
+            const subjectId = parseInt(cb.value);
+            const subject = this.allSubjects.find(s => s.id === subjectId);
+            
+            if (subject) {
+                // Tilføj række
+                this.renderRow({
+                    subject_id: subject.id,
+                    subject_name: subject.name,
+                    subject_type: subject.type,
+                    quantity: 1,
+                    variant_description: '' // Man kan udfylde dette bagefter
+                });
+            }
+        });
+
+        this.updateUI();
+        this.closeMultiAdd();
+        
+        // Scroll til bunden
+        const container = document.getElementById('itemsContainer');
+        if(container) setTimeout(() => container.scrollTop = container.scrollHeight, 100);
+        
+        App.showToast(checkboxes.length + ' items added!');
+    },
 };
 
 document.addEventListener('DOMContentLoaded', () => MasterToyMgr.init());
