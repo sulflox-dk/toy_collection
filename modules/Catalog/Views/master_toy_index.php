@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">Catalog / Master Toys</h1>
-    <button class="btn btn-dark" onclick="MasterToyMgr.openUniverseSelect()">
-        <i class="fas fa-plus me-2"></i> Add New Toy
+    <h1 class="h3 text-dark">Catalog / Master Toys</h1>
+    <button class="btn btn-dark btn-sm" onclick="MasterToyMgr.openUniverseSelect()">
+        <i class="fas fa-plus me-1"></i> Add New
     </button>
 </div>
 

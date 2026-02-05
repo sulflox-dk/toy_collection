@@ -1,6 +1,6 @@
-<div class="dashboard-header">
+<div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 text-dark">Overview</h1>
-    <button onclick="App.openModal('Collection', 'Toy', 'add')" class="btn btn-dark btn-sm">
+    <button class="btn btn-dark btn-sm" onclick="CollectionForm.openAddModal()">
         <i class="fas fa-plus me-1"></i> Add New
     </button>
 </div>

@@ -53,22 +53,40 @@ const ManMgr = {
     },
 
     attachGridListeners: function() {
-        const editModal = new bootstrap.Modal(document.getElementById('editManModal'));
+        // Rediger knap (Blyant-ikonet i rækken)
         document.querySelectorAll('.btn-edit').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const data = JSON.parse(this.closest('tr').dataset.json);
-                document.getElementById('edit_id').value = data.id;
-                document.getElementById('edit_name').value = data.name;
-                document.getElementById('edit_show').checked = (data.show_on_dashboard == 1);
-                editModal.show();
+            btn.addEventListener('click', (e) => {
+                const id = e.currentTarget.closest('tr').dataset.id;
+                if(window.CollectionForm && typeof CollectionForm.openEditModal === 'function') {
+                    CollectionForm.openEditModal(id);
+                } else {
+                    console.error('CollectionForm.openEditModal er ikke tilgængelig');
+                }
             });
         });
 
-        const deleteModal = new bootstrap.Modal(document.getElementById('deleteManModal'));
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const data = JSON.parse(this.closest('tr').dataset.json);
-                ManMgr.prepareDelete(data, deleteModal);
+        // Media knap (Kamera-ikonet i rækken)
+        document.querySelectorAll('.btn-media').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.currentTarget.closest('tr').dataset.id;
+                
+                // Vi genbruger logikken fra Dashboardet til at åbne media-trinnet
+                const modalEl = document.getElementById('appModal');
+                if (!modalEl) return;
+
+                fetch(`${App.baseUrl}?module=Collection&controller=Toy&action=media_step&id=${id}`)
+                    .then(res => res.text())
+                    .then(html => {
+                        const modalContent = modalEl.querySelector('.modal-content');
+                        modalContent.innerHTML = html;
+                        const modal = new bootstrap.Modal(modalEl);
+                        modal.show();
+
+                        if (typeof App.initMediaUploads === 'function') {
+                            App.initMediaUploads();
+                        }
+                    })
+                    .catch(err => console.error('Fejl ved hentning af media modal:', err));
             });
         });
     },

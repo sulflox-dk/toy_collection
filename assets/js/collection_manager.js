@@ -13,6 +13,7 @@ const CollectionMgr = {
         this.fStatus = document.getElementById('filterStatus');
 
         this.attachFilterListeners();
+        // Load første side ved start
         this.loadPage(1);
     },
 
@@ -58,59 +59,53 @@ const CollectionMgr = {
             search: this.search ? this.search.value : ''
         });
 
-        this.container.style.opacity = '0.5';
-        fetch(`${this.baseUrl}?${params.toString()}`)
-            .then(res => res.text())
-            .then(html => {
-                this.container.innerHTML = html;
-                this.container.style.opacity = '1';
-                this.attachGridListeners(); 
-            });
+        if(this.container) {
+            this.container.style.opacity = '0.5';
+            fetch(`${this.baseUrl}?${params.toString()}`)
+                .then(res => res.text())
+                .then(html => {
+                    this.container.innerHTML = html;
+                    this.container.style.opacity = '1';
+                    this.attachGridListeners(); 
+                });
+        }
     },
 
     attachGridListeners: function() {
-        // Edit Button -> Bruger CollectionForm (fra collection-form.js)
+        // Rediger knap (Blyant) - Bruger nu CollectionForm
         document.querySelectorAll('.btn-edit').forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = this.closest('tr').dataset.id;
                 if(window.CollectionForm) {
                     CollectionForm.openEditModal(id);
-                } else {
-                    console.error('CollectionForm not loaded');
                 }
             });
         });
 
-        // Media Button -> Bruger App.initMediaUploads logikken
+        // Media knap (Kamera) - Bruger nu CollectionForm
         document.querySelectorAll('.btn-media').forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = this.closest('tr').dataset.id;
-                // Vi genbruger samme logik som på dashboardet for media modal
-                // Men vi har brug for en funktion der åbner den. 
-                // Hvis CollectionForm ikke har en "openMedia", må vi bruge en direkte approach:
-                App.openModal('Collection', 'Toy', 'modal_add_media', { id: id });
+                if(window.CollectionForm) {
+                    CollectionForm.openMediaModal(id);
+                }
             });
         });
     }
 };
 
-// Vi hægter os på CollectionForm's success callback for at reloade listen
-// Dette er et simpelt hack, da vi ikke har events.
 document.addEventListener('DOMContentLoaded', () => {
     CollectionMgr.init();
     
-    // Hvis CollectionForm findes, overskriv dens "onSuccess" midlertidigt eller lyt efter reload
-    // En bedre måde: Modalen loader hele siden ved success?
-    // I din nuværende app.js ser det ud til at 'modal_step2' reloader via loadPage(1).
-    // Lad os antage at CollectionForm.saveToy() reloader siden eller vi skal injecte reload:
-    
-    const originalSave = window.CollectionForm ? window.CollectionForm.handleSaveSuccess : null;
+    // Her "hacker" vi CollectionForm til kun at reloade griddet i stedet for hele siden
     if (window.CollectionForm) {
         window.CollectionForm.handleSaveSuccess = function(data) {
-            // Kald originalen hvis den findes
-            if (originalSave) originalSave(data);
-            // OG reload vores liste
-            CollectionMgr.loadPage(1);
+            App.showToast('Saved successfully!');
+            // Reload kun listen, ikke hele siden
+            CollectionMgr.loadPage(1); 
+            
+            // Hvis modalen stadig er åben (ved fejl eller lignende), luk den evt.
+            // Men typisk håndterer App.js lukningen eller reload af modal-indhold
         };
     }
 });

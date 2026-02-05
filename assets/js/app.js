@@ -44,16 +44,24 @@ const App = {
 		fetch(url)
 			.then((res) => res.text())
 			.then((html) => {
-				modalEl.querySelector('.modal-content').innerHTML = html;
+                modalEl.querySelector('.modal-content').innerHTML = html;
 
-				// Initialiser dropdowns hvis det er formen vi har hentet
-				if (
-					action === 'form' &&
-					typeof this.initDependentDropdowns === 'function'
-				) {
-					this.initDependentDropdowns();
-				}
-			})
+                // RETTET: Tjek også for 'add' og 'edit' handlingerne
+                if (
+                    (action === 'form' || action === 'add' || action === 'edit') &&
+                    typeof this.initDependentDropdowns === 'function'
+                ) {
+                    this.initDependentDropdowns();
+                }
+                
+                // Tilføj evt. også dette, hvis du vil være sikker på Media uploads virker i 'media_step'
+                if (
+                    action === 'media_step' && 
+                    typeof this.initMediaUploads === 'function'
+                ) {
+                    this.initMediaUploads();
+                }
+            })
 			.catch((err) => {
 				modalEl.querySelector('.modal-body').innerHTML =
 					`<div class="alert alert-danger">Error: ${err}</div>`;

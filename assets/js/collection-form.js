@@ -382,3 +382,29 @@ App.initDependentDropdowns = function () {
         });
     }
 };
+
+window.CollectionForm = {
+    // Åbner modal til at oprette nyt legetøj
+    openAddModal: function() {
+        App.openModal('Collection', 'Toy', 'add');
+    },
+
+    // Åbner modal til redigering af data
+    openEditModal: function(id) {
+        if (!id) return console.error('Missing ID for edit modal');
+        App.openModal('Collection', 'Toy', 'edit', { id: id });
+    },
+
+    // Åbner modal til billeder (Step 3 / Media Step)
+    openMediaModal: function(id) {
+        if (!id) return console.error('Missing ID for media modal');
+        App.openModal('Collection', 'Toy', 'media_step', { id: id });
+    },
+
+    // Callback når noget gemmes (kan overskrives af de enkelte sider)
+    handleSaveSuccess: function(data) {
+        App.showToast('Collection updated successfully!');
+        // Standard reload hvis ingen specifik logik er defineret:
+        setTimeout(() => window.location.reload(), 1000);
+    }
+};
