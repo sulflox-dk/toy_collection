@@ -1,9 +1,15 @@
 const CollectionMgr = {
+    // Variabler til at holde styr på tilstand
+    currentPage: 1,
+    baseUrl: '/',
+    container: null,
+
     init: function() {
-        this.baseUrl = App.baseUrl; // Sikrer at vi har base URL
+        // Sæt Base URL sikkert (hvis App objektet findes)
+        this.baseUrl = (typeof App !== 'undefined' && App.baseUrl) ? App.baseUrl : '/';
         this.container = document.getElementById('collectionGridContainer');
         
-        // Element references
+        // Element referencer til filtre
         this.search = document.getElementById('searchCollection');
         this.fUniverse = document.getElementById('filterUniverse');
         this.fLine = document.getElementById('filterLine');
@@ -12,57 +18,103 @@ const CollectionMgr = {
         this.fSource = document.getElementById('filterPurchaseSource');
         this.fStatus = document.getElementById('filterStatus');
 
-        // 1. Start lyttere til filtre
+        // 1. Start lyttere på filtrene (hvis de findes)
         this.attachFilterListeners();
 
-        // 2. Start "Global" lytter til grid-knapper (Event Delegation)
-        // Dette erstatter den gamle attachGridListeners og virker altid!
-        if (this.container) {
-            this.container.addEventListener('click', (e) => {
-                // SLET KNAP
-                const delBtn = e.target.closest('.btn-delete');
-                if (delBtn) {
-                    this.handleDelete(delBtn);
-                    return; // Stop her
-                }
-
-                // EDIT KNAP
-                const editBtn = e.target.closest('.btn-edit');
-                if (editBtn) {
-                    const id = editBtn.closest('tr').dataset.id;
-                    if(window.CollectionForm) CollectionForm.openEditModal(id);
-                    return;
-                }
-
-                // MEDIA KNAP
-                const mediaBtn = e.target.closest('.btn-media');
-                if (mediaBtn) {
-                    const id = mediaBtn.closest('tr').dataset.id;
-                    if(window.CollectionForm) CollectionForm.openMediaModal(id);
-                    return;
-                }
-            });
-        }
-
+        // 2. Sæt knap-status baseret på cookie
         const match = document.cookie.match(new RegExp('(^| )collection_view_mode=([^;]+)'));
         const currentMode = match ? match[2] : 'list';
         this.updateViewButtons(currentMode);
 
-        // Load første side ved start
-        this.loadPage(1);
+        // 3. GLOBAL CLICK LISTENER (Den robuste løsning)
+        // Vi lytter på hele dokumentet, så vi fanger klik fra både AJAX-indhold og statisk indhold
+        document.body.addEventListener('click', (e) => {
+            
+            // Hjælpefunktion: Find ID fra enten Card (div) eller Table Row (tr)
+            const findId = (el) => {
+                const container = el.closest('[data-id]') || el.closest('tr');
+                return container ? container.dataset.id : null;
+            };
+
+            // --- DELETE KNAP ---
+            const delBtn = e.target.closest('.btn-delete');
+            if (delBtn) { 
+                e.preventDefault();
+                this.handleDelete(delBtn); 
+                return; 
+            }
+
+            // --- EDIT KNAP ---
+            const editBtn = e.target.closest('.btn-edit');
+            if (editBtn) {
+                e.preventDefault();
+                const id = findId(editBtn);
+                if (id && window.CollectionForm) {
+                    CollectionForm.openEditModal(id);
+                }
+                return;
+            }
+
+            // --- MEDIA KNAP ---
+            const mediaBtn = e.target.closest('.btn-media');
+            if (mediaBtn) {
+                e.preventDefault();
+                const id = findId(mediaBtn);
+                if (id && window.CollectionForm) {
+                    CollectionForm.openMediaModal(id);
+                }
+                return;
+            }
+        });
+
+        // 4. Load indhold (KUN hvis vi er på Collection-siden hvor containeren findes)
+        if (this.container) {
+            this.loadPage(1);
+        }
     },
 
-    // Ny separat funktion til sletning
+    // Skift visning (List/Cards)
+    switchView: function(mode) {
+        document.cookie = "collection_view_mode=" + mode + "; path=/; max-age=31536000"; // Gem i 1 år
+        this.updateViewButtons(mode);
+        // Genindlæs listen hvis vi er på collection siden
+        if (this.container) {
+            this.loadPage(this.currentPage || 1);
+        } else {
+            // Hvis vi er på dashboard eller andet sted, reload siden
+            window.location.reload();
+        }
+    },
+
+    // Opdater visuel status på knapperne
+    updateViewButtons: function(mode) {
+        const btnList = document.getElementById('btn-view-list');
+        const btnCards = document.getElementById('btn-view-cards');
+        
+        if(btnList && btnCards) {
+            if(mode === 'list') {
+                btnList.classList.add('active', 'bg-secondary', 'text-white');
+                btnCards.classList.remove('active', 'bg-secondary', 'text-white');
+            } else {
+                btnCards.classList.add('active', 'bg-secondary', 'text-white');
+                btnList.classList.remove('active', 'bg-secondary', 'text-white');
+            }
+        }
+    },
+
+    // Håndter sletning
     handleDelete: function(btn) {
-        if(!confirm('Are you sure? This will delete the toy, all its items, and ALL associated photos permanently.')) {
+        if(!confirm('Are you sure? This will delete the toy and all associated images permanently.')) {
             return;
         }
 
-        const tr = btn.closest('tr');
-        const id = tr.dataset.id;
+        const container = btn.closest('[data-id]') || btn.closest('tr');
+        const id = container ? container.dataset.id : null;
+
+        if (!id) return;
         
-        // Visuel feedback (gør rækken utydelig)
-        tr.style.opacity = '0.3';
+        // Visuel feedback
+        container.style.opacity = '0.3';
 
         fetch(`${this.baseUrl}?module=Collection&controller=Toy&action=delete`, {
             method: 'POST',
@@ -72,15 +124,22 @@ const CollectionMgr = {
         .then(res => res.json())
         .then(data => {
             if(data.success) {
-                App.showToast('Item deleted successfully!');
-                this.loadPage(1); // Genindlæs listen
+                if (window.App && App.showToast) App.showToast('Item deleted successfully!');
+                
+                // Hvis vi er på collection siden -> reload grid via ajax
+                if (this.container) {
+                    this.loadPage(this.currentPage);
+                } else {
+                    // Hvis vi er på dashboard -> reload hele siden
+                    window.location.reload();
+                }
             } else {
-                tr.style.opacity = '1'; 
+                container.style.opacity = '1';
                 alert('Error deleting: ' + (data.error || 'Unknown error'));
             }
         })
         .catch(err => {
-            tr.style.opacity = '1';
+            container.style.opacity = '1';
             console.error(err);
             alert('System error occurred.');
         });
@@ -107,6 +166,7 @@ const CollectionMgr = {
 
     resetFilters: function() {
         if(this.search) this.search.value = '';
+        // Nulstil alle selects i headeren
         const selects = document.querySelectorAll('.card-header select');
         selects.forEach(s => s.value = '');
         this.loadPage(1);
@@ -114,6 +174,7 @@ const CollectionMgr = {
 
     loadPage: function(page) {
         this.currentPage = page;
+
         const params = new URLSearchParams({
             module: 'Collection', 
             controller: 'Toy', 
@@ -136,37 +197,12 @@ const CollectionMgr = {
                 .then(html => {
                     this.container.innerHTML = html;
                     this.container.style.opacity = '1';
-                    // Vi behøver ikke kalde attachGridListeners længere, 
-                    // da "init" lytteren fanger alt!
+                })
+                .catch(err => {
+                    console.error("Load failed:", err);
+                    this.container.innerHTML = '<div class="alert alert-danger p-3">Failed to load data.</div>';
+                    this.container.style.opacity = '1';
                 });
-        }
-    },
-
-    // Skift view mode (list/cards)
-    switchView: function(mode) {
-        // 1. Gem i cookie (gælder i 1 år)
-        document.cookie = "collection_view_mode=" + mode + "; path=/; max-age=31536000";
-        
-        // 2. Opdater knap-udseende med det samme
-        this.updateViewButtons(mode);
-
-        // 3. Genindlæs listen for at få den nye HTML fra serveren
-        // Vi bruger currentPage, som vi gemte sidst loadPage kørte (se rettelse i loadPage herunder)
-        this.loadPage(this.currentPage || 1);
-    },
-
-    updateViewButtons: function(mode) {
-        const btnList = document.getElementById('btn-view-list');
-        const btnCards = document.getElementById('btn-view-cards');
-        
-        if(btnList && btnCards) {
-            if(mode === 'list') {
-                btnList.classList.add('active', 'bg-secondary', 'text-white');
-                btnCards.classList.remove('active', 'bg-secondary', 'text-white');
-            } else {
-                btnCards.classList.add('active', 'bg-secondary', 'text-white');
-                btnList.classList.remove('active', 'bg-secondary', 'text-white');
-            }
         }
     }
 };
@@ -174,11 +210,17 @@ const CollectionMgr = {
 document.addEventListener('DOMContentLoaded', () => {
     CollectionMgr.init();
     
-    // Hack til reload efter save
+    // Hack til reload efter save (Hvis CollectionForm bruges)
     if (window.CollectionForm) {
         window.CollectionForm.handleSaveSuccess = function(data) {
-            App.showToast('Saved successfully!');
-            CollectionMgr.loadPage(1); 
+            if (window.App && App.showToast) App.showToast('Saved successfully!');
+            
+            // Hvis container findes, reload kun grid. Ellers reload side (dashboard).
+            if (document.getElementById('collectionGridContainer')) {
+                CollectionMgr.loadPage(CollectionMgr.currentPage || 1);
+            } else {
+                window.location.reload();
+            }
         };
     }
 });

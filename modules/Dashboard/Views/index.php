@@ -92,15 +92,27 @@
 <?php endforeach; ?>
 
 <div class="card recent-card">
-    <div class="card-header recent-card-header">
+    <div class="card-header recent-card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0 text-gray-800">
             <i class="fas fa-clock me-2"></i>Recently Added
         </h5>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-btn-list" 
+                    onclick="DashboardMgr.switchView('list')" title="List View">
+                <i class="fas fa-list"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-btn-cards" 
+                    onclick="DashboardMgr.switchView('cards')" title="Grid View">
+                <i class="fas fa-th"></i>
+            </button>
+        </div>
     </div>
     <div class="card-body p-0">
         <?php 
         // Vi genbruger grid-viewet fra Collection modulet!
         // Vi sender 'hide_pagination' => true med, så vi slipper for sidetal
+        $data['recentToys']['view_mode'] = $viewMode;
+        $data['recentToys']['hide_pagination'] = true;
         $this->renderPartial('grid', $data['recentToys'], 'Collection'); 
         ?>
     </div>

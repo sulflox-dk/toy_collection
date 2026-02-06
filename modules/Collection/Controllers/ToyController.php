@@ -269,7 +269,7 @@ class ToyController extends Controller {
             'statuses' => $db->getEnumValues('collection_toys', 'acquisition_status'),
             // Scripts: Vi genbruger collection-form.js (til add/edit) og collection-media.js
             'scripts' => [
-                'assets/js/collection-form.js',    
+                'assets/js/collection-form.js',
                 'assets/js/collection_manager.js',
                 'assets/js/collection-media.js'
             ]
