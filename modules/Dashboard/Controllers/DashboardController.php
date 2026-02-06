@@ -3,12 +3,14 @@ namespace CollectionApp\Modules\Dashboard\Controllers;
 
 use CollectionApp\Kernel\Controller;
 use CollectionApp\Modules\Dashboard\Models\StatsModel;
+use CollectionApp\Modules\Collection\Models\ToyModel;
 
 class DashboardController extends Controller {
 
     public function index() {
         // Opret instans af den nye Model
         $statsModel = new StatsModel();
+        $toyModel = new ToyModel();
 
         // 1. HENT STATISTIK (Nu via model)
         $rawStats = $statsModel->getDashboardStats();
@@ -20,7 +22,8 @@ class DashboardController extends Controller {
         }
 
         // 2. HENT RECENTLY ADDED (Nu via model)
-        $recentToys = $statsModel->getRecentAdditions(20);
+        // Vi beder om sortering 'newest' og henter side 1 med 10 resultater
+        $recentToys = $toyModel->getFiltered(['sort' => 'newest'], 1, 20);
 
         // 3. SEND DATA TIL VIEWET
         $data = [

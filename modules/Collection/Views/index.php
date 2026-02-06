@@ -1,8 +1,20 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 text-dark">My Collection</h1>
+    <div class="d-flex gap-2">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-view-list" 
+                    onclick="CollectionMgr.switchView('list')" title="List View">
+                <i class="fas fa-list"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-view-cards" 
+                    onclick="CollectionMgr.switchView('cards')" title="Grid View">
+                <i class="fas fa-th"></i>
+            </button>
+        </div>
     <button class="btn btn-dark btn-sm" onclick="CollectionForm.openAddModal()">
         <i class="fas fa-plus me-1"></i> Add New
     </button>
+    </div>
 </div>
 
 <div class="card shadow-sm border-0">

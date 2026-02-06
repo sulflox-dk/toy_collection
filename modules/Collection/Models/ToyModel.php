@@ -310,10 +310,30 @@ class ToyModel {
         $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table";
         $total = $this->db->query($countSql, $params)->fetchColumn();
 
-        // Sort & Limit (Sorterer nyeste først som standard i collection)
-        $sql .= " ORDER BY mt.name ASC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        // --- SORTERING (Her kommer ændringen til Dashboard) ---
+        
+        if (isset($filters['sort']) && $filters['sort'] === 'newest') {
+            // Dashboard: Vis nyeste tilføjelser først
+            $sql .= " ORDER BY ct.id DESC";
+        } else {
+            // Standard: Sorter alfabetisk efter legetøjsnavn
+            $sql .= " ORDER BY mt.name ASC";
+        }
+
+        // Limit og Offset
+        $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
 
         $results = $this->db->query($sql, $params)->fetchAll();
+
+        // VIGTIGT: Returner i det format din Controller forventer (array vs raw data)
+        // I den gamle metode returnerede du et array med ['data', 'total', ...].
+        // Men din getRecentAdditions kaldte bare ->fetchAll() direkte.
+        // For at understøtte BEGGE dele, gør vi sådan her:
+        
+        // Hvis vi kun skal bruge raw data (f.eks. til dashboardet som ikke bruger pagineringsobjektet direkte endnu)
+        if (isset($filters['raw_result']) && $filters['raw_result'] === true) {
+            return $results;
+        }
 
         return [
             'data' => $results,

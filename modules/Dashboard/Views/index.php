@@ -98,61 +98,10 @@
         </h5>
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4">Name</th>
-                        <th>Manufacturer / Line</th>
-                        <th>Date</th>
-                        <th class="text-end pe-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($recentToys)): ?>
-                        <?php foreach ($recentToys as $toy): ?>
-                            <tr>
-                                <td class="ps-4">
-                                    <?= htmlspecialchars($toy['toy_name']) ?>
-                                </td>
-                                <td class="text-muted">
-                                    <?= htmlspecialchars($toy['manufacturer_name']) ?> / <?= htmlspecialchars($toy['line_name']) ?>
-                                </td>
-                                <td class="text-muted small">
-                                    <?php if (!empty($toy['purchase_date'])): ?>
-                                        <?= date('d. M Y', strtotime($toy['purchase_date'])) ?>
-                                    <?php else: ?>
-                                        <span class="text-muted">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="text-end pe-4">
-                                    <div class="btn-group action-btn-group">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary edit-toy-btn" 
-                                                data-id="<?= $toy['id'] ?>" 
-                                                title="Edit Data">
-                                            <i class="fas fa-pencil-alt"></i>
-                                        </button>
-                                        
-                                        <button type="button" class="btn btn-sm btn-outline-secondary edit-photos-btn" 
-                                                data-id="<?= $toy['id'] ?>" 
-                                                title="Manage Photos">
-                                            <i class="fas fa-camera"></i>
-                                        </button>
-                                        
-                                        <a href="#" class="btn btn-sm btn-outline-secondary btn-action-last">
-                                            <i class="fas fa-chevron-right"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="4" class="text-center py-4 text-muted">No toys added yet.</td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+        <?php 
+        // Vi genbruger grid-viewet fra Collection modulet!
+        // Vi sender 'hide_pagination' => true med, så vi slipper for sidetal
+        $this->renderPartial('grid', $data['recentToys'], 'Collection'); 
+        ?>
     </div>
 </div>

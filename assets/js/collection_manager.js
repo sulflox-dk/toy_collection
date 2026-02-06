@@ -44,6 +44,10 @@ const CollectionMgr = {
             });
         }
 
+        const match = document.cookie.match(new RegExp('(^| )collection_view_mode=([^;]+)'));
+        const currentMode = match ? match[2] : 'list';
+        this.updateViewButtons(currentMode);
+
         // Load første side ved start
         this.loadPage(1);
     },
@@ -109,6 +113,7 @@ const CollectionMgr = {
     },
 
     loadPage: function(page) {
+        this.currentPage = page;
         const params = new URLSearchParams({
             module: 'Collection', 
             controller: 'Toy', 
@@ -134,6 +139,34 @@ const CollectionMgr = {
                     // Vi behøver ikke kalde attachGridListeners længere, 
                     // da "init" lytteren fanger alt!
                 });
+        }
+    },
+
+    // Skift view mode (list/cards)
+    switchView: function(mode) {
+        // 1. Gem i cookie (gælder i 1 år)
+        document.cookie = "collection_view_mode=" + mode + "; path=/; max-age=31536000";
+        
+        // 2. Opdater knap-udseende med det samme
+        this.updateViewButtons(mode);
+
+        // 3. Genindlæs listen for at få den nye HTML fra serveren
+        // Vi bruger currentPage, som vi gemte sidst loadPage kørte (se rettelse i loadPage herunder)
+        this.loadPage(this.currentPage || 1);
+    },
+
+    updateViewButtons: function(mode) {
+        const btnList = document.getElementById('btn-view-list');
+        const btnCards = document.getElementById('btn-view-cards');
+        
+        if(btnList && btnCards) {
+            if(mode === 'list') {
+                btnList.classList.add('active', 'bg-secondary', 'text-white');
+                btnCards.classList.remove('active', 'bg-secondary', 'text-white');
+            } else {
+                btnCards.classList.add('active', 'bg-secondary', 'text-white');
+                btnList.classList.remove('active', 'bg-secondary', 'text-white');
+            }
         }
     }
 };

@@ -289,6 +289,7 @@ class ToyController extends Controller {
         ];
 
         $data = $this->toyModel->getFiltered($filters, $page, 20);
+        $data['view_mode'] = $_COOKIE['collection_view_mode'] ?? 'list';
         $this->view->renderPartial('grid', $data, 'Collection');
     }
 

@@ -58,23 +58,4 @@ class StatsModel {
         return $this->db->query($sql)->fetchAll();
     }
 
-    public function getRecentAdditions($limit = 20) {
-        $sqlRecent = "
-            SELECT 
-                ct.*, 
-                mt.name as toy_name,
-                l.name as line_name,
-                m.name as manufacturer_name
-            FROM collection_toys ct
-            JOIN master_toys mt ON ct.master_toy_id = mt.id
-            JOIN toy_lines l ON mt.line_id = l.id
-            JOIN manufacturers m ON l.manufacturer_id = m.id
-            ORDER BY ct.id DESC 
-            LIMIT :limit
-        ";
-        
-        // Bemærk: PDO LIMIT kræver ofte integer-binding, men direkte værdi er ok her
-        // For at være helt sikker binder vi den ikke som string
-        return $this->db->query($sqlRecent, ['limit' => $limit])->fetchAll();
-    }
 }
