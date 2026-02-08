@@ -576,6 +576,10 @@ window.CollectionForm = {
 
 		// 2. Luk modalen
 		if (modalEl) {
+			if (document.activeElement) {
+				document.activeElement.blur();
+			}
+
 			const modal = bootstrap.Modal.getInstance(modalEl);
 			if (modal) modal.hide();
 

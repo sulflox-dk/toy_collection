@@ -10,24 +10,37 @@ const MasterToyMgr = {
 	init: function () {
 		console.log('MasterToyMgr Init started');
 
-		// Sikker Base URL
 		this.baseUrl =
 			typeof App !== 'undefined' && App.baseUrl ? App.baseUrl : '/';
-
 		this.container = document.getElementById('masterToyGridContainer');
 		this.search = document.getElementById('searchName');
 
+		// Referencer til ALLE filtre
 		this.filterUni = document.getElementById('filterUniverse');
+		this.filterMan = document.getElementById('filterManufacturer'); // NY
 		this.filterLine = document.getElementById('filterLine');
+		this.filterType = document.getElementById('filterProductType'); // NY
 		this.filterSource = document.getElementById('filterSource');
+		this.filterOwned = document.getElementById('filterOwned');
+		this.filterImage = document.getElementById('filterImage'); // NY
 
-		// 1. FILTERS (hvis de findes)
-		const filters = [this.filterUni, this.filterLine, this.filterSource];
+		// Array af filtre
+		const filters = [
+			this.filterUni,
+			this.filterMan,
+			this.filterLine,
+			this.filterType,
+			this.filterSource,
+			this.filterOwned,
+			this.filterImage,
+		];
+
+		// Tilføj lyttere
 		filters.forEach((f) => {
 			if (f) f.addEventListener('change', () => this.loadPage(1));
 		});
 
-		// 2. SEARCH DELAY
+		// Search delay
 		let timeout;
 		if (this.search) {
 			this.search.addEventListener('keyup', () => {
@@ -36,22 +49,20 @@ const MasterToyMgr = {
 			});
 		}
 
-		// 3. SET VIEW BUTTON STATE (L�s fra cookie)
+		// Set View Button State
 		const match = document.cookie.match(
 			new RegExp('(^| )catalog_view_mode=([^;]+)'),
 		);
 		const currentMode = match ? match[2] : 'list';
 		this.updateViewButtons(currentMode);
 
-		// 4. GLOBAL CLICK LISTENER (Robust l�sning)
+		// Global Click Listener
 		document.body.addEventListener('click', (e) => {
-			// Hj�lper til at finde ID fra b�de table row og card
 			const findId = (el) => {
 				const container = el.closest('[data-id]') || el.closest('tr');
 				return container ? container.dataset.id : null;
 			};
 
-			// --- EDIT KNAP ---
 			const editBtn = e.target.closest('.btn-edit');
 			if (editBtn) {
 				e.preventDefault();
@@ -60,7 +71,6 @@ const MasterToyMgr = {
 				return;
 			}
 
-			// --- MEDIA KNAP ---
 			const mediaBtn = e.target.closest('.btn-media');
 			if (mediaBtn) {
 				e.preventDefault();
@@ -69,7 +79,6 @@ const MasterToyMgr = {
 				return;
 			}
 
-			// --- DELETE KNAP ---
 			const delBtn = e.target.closest('.btn-delete');
 			if (delBtn) {
 				e.preventDefault();
@@ -78,12 +87,11 @@ const MasterToyMgr = {
 			}
 		});
 
-		// 5. MUTATION OBSERVER (Til Modal Form Initialisering)
+		// Mutation Observer
 		const modalEl = document.getElementById('appModal');
 		if (modalEl) {
 			const observer = new MutationObserver(() => {
 				const form = document.getElementById('masterToyForm');
-				// Hvis formen findes og ikke er startet endnu
 				if (form && !form.dataset.initialized) {
 					form.dataset.initialized = 'true';
 					this.initForm();
@@ -92,7 +100,6 @@ const MasterToyMgr = {
 			observer.observe(modalEl, { childList: true, subtree: true });
 		}
 
-		// Initialiser current page (hvis container findes)
 		if (this.container) {
 			this.currentPage = 1;
 		}
@@ -127,7 +134,6 @@ const MasterToyMgr = {
 		}
 	},
 
-	// --- GRID LOADING ---
 	loadPage: function (page) {
 		this.currentPage = page;
 
@@ -138,8 +144,12 @@ const MasterToyMgr = {
 			ajax_grid: 1,
 			page: page,
 			universe_id: this.filterUni ? this.filterUni.value : '',
+			manufacturer_id: this.filterMan ? this.filterMan.value : '', // NY
 			line_id: this.filterLine ? this.filterLine.value : '',
+			product_type_id: this.filterType ? this.filterType.value : '', // NY
 			source_id: this.filterSource ? this.filterSource.value : '',
+			owned_status: this.filterOwned ? this.filterOwned.value : '',
+			image_status: this.filterImage ? this.filterImage.value : '', // NY
 			search: this.search ? this.search.value : '',
 		});
 
@@ -156,6 +166,19 @@ const MasterToyMgr = {
 					this.container.style.opacity = '1';
 				});
 		}
+	},
+
+	resetFilters: function () {
+		if (this.filterUni) this.filterUni.value = '';
+		if (this.filterMan) this.filterMan.value = '';
+		if (this.filterLine) this.filterLine.value = '';
+		if (this.filterType) this.filterType.value = '';
+		if (this.filterSource) this.filterSource.value = '';
+		if (this.filterOwned) this.filterOwned.value = '';
+		if (this.filterImage) this.filterImage.value = '';
+		if (this.search) this.search.value = '';
+
+		this.loadPage(1);
 	},
 
 	// --- ACTIONS ---
@@ -326,6 +349,8 @@ const MasterToyMgr = {
 		});
 	},
 
+	// ... (resten af koden før submitForm) ...
+
 	submitForm: function () {
 		const form = document.getElementById('masterToyForm');
 		if (!form.checkValidity()) {
@@ -357,6 +382,11 @@ const MasterToyMgr = {
 				if (data.success) {
 					const modalEl = document.getElementById('appModal');
 					const modal = bootstrap.Modal.getInstance(modalEl);
+
+					if (document.activeElement) {
+						document.activeElement.blur();
+					}
+
 					if (modal) modal.hide();
 
 					App.showToast(
@@ -364,14 +394,20 @@ const MasterToyMgr = {
 							? 'Toy updated successfully!'
 							: 'Toy created successfully!',
 					);
-					this.loadPage(1);
 
-					if (!id) {
-						// Hvis NY: Hop til media
+					// --- SMART REFRESH LOGIK HER ---
+					if (id) {
+						// Hvis det er en opdatering: Refresh kun kortet
+						this.refreshItem(id);
+					} else {
+						// Hvis det er en ny: Reload side 1
+						this.loadPage(1);
+						// Hop til media upload hvis ny
 						setTimeout(() => {
 							MasterToyMgr.openMedia(data.id, 'create');
 						}, 500);
 					}
+					// -------------------------------
 				} else {
 					alert(data.error);
 					if (btn) {
@@ -389,6 +425,66 @@ const MasterToyMgr = {
 				}
 			});
 	},
+
+	// --- NY FUNKTION: Opdaterer et enkelt kort i listen ---
+	refreshItem: function (id) {
+		console.log('MasterToyMgr: Refreshing item', id);
+		const oldCard = document.querySelector(`.toy-card[data-id="${id}"]`);
+
+		if (!oldCard) {
+			console.warn('Old card not found:', id);
+			return;
+		}
+
+		oldCard.style.opacity = '0.5';
+
+		const url = `${this.baseUrl}?module=Catalog&controller=MasterToy&action=get_item_html&id=${id}&t=${new Date().getTime()}`;
+
+		fetch(url)
+			.then((res) => res.text())
+			.then((html) => {
+				const temp = document.createElement('div');
+				temp.innerHTML = html;
+
+				// 1. Prøv at finde kortet direkte (hvis serveren returnerer row -> col -> card)
+				let newCard = temp.querySelector(`.toy-card[data-id="${id}"]`);
+
+				// 2. Hvis ikke fundet, tjek om hele HTML'en ER kortet
+				if (
+					!newCard &&
+					temp.firstElementChild &&
+					temp.firstElementChild.classList.contains('toy-card')
+				) {
+					newCard = temp.firstElementChild;
+				}
+
+				if (newCard) {
+					oldCard.replaceWith(newCard);
+
+					// Flash effekt
+					newCard.style.transition = 'background-color 0.5s ease';
+					const originalBg = newCard.style.backgroundColor;
+					newCard.style.backgroundColor = '#e8f5e9';
+					setTimeout(() => {
+						newCard.style.backgroundColor = originalBg || '';
+					}, 800);
+
+					console.log('MasterToyMgr: Refresh success!');
+				} else {
+					console.error(
+						'MasterToyMgr: Kunne ikke finde det nye kort i svaret.',
+					);
+					console.log('Server response:', html);
+					oldCard.style.opacity = '1';
+				}
+			})
+			.catch((err) => {
+				console.error(err);
+				oldCard.style.opacity = '1';
+			});
+	},
+
+	// ... (resten af filen: addItem, removeItem osv.) ...
 
 	// --- ITEM ROW / MULTI ADD LOGIC ---
 	addItem: function () {

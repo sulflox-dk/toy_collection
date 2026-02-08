@@ -20,25 +20,44 @@ App.initMediaUploads = function () {
 
 	// Fallback: Find ID fra upload knappen
 	if (!collectionId) {
-		const parentUploadBtn = containerEl.querySelector(
+		// Prøv først Collection
+		let parentUploadBtn = containerEl.querySelector(
 			'.upload-input[data-context="collection_parent"]',
 		);
+
+		// Hvis ikke fundet, prøv Catalog (Master Toy)
+		if (!parentUploadBtn) {
+			parentUploadBtn = containerEl.querySelector(
+				'.upload-input[data-context="catalog_parent"]',
+			);
+		}
+
 		if (parentUploadBtn && parentUploadBtn.dataset.id) {
 			collectionId = parentUploadBtn.dataset.id;
 		}
 	}
 
-	console.log('Media: Init fundet Collection ID:', collectionId);
+	console.log('Media: Init fundet ID:', collectionId);
 
 	// Hjælpefunktion: Opdater kortet bagved
 	const refreshBackgroundCard = () => {
+		// Tjek CollectionMgr (hvis vi er i Collection modulet)
 		if (
 			collectionId &&
 			typeof CollectionMgr !== 'undefined' &&
 			typeof CollectionMgr.refreshItem === 'function'
 		) {
-			console.log('Media: Refreshing item ' + collectionId);
+			console.log('Media: Refreshing Collection item ' + collectionId);
 			CollectionMgr.refreshItem(collectionId);
+		}
+		// Tjek MasterToyMgr (hvis vi er i Catalog modulet)
+		else if (
+			collectionId &&
+			typeof MasterToyMgr !== 'undefined' &&
+			typeof MasterToyMgr.refreshItem === 'function'
+		) {
+			console.log('Media: Refreshing Master Toy item ' + collectionId);
+			MasterToyMgr.refreshItem(collectionId);
 		}
 	};
 
@@ -342,15 +361,22 @@ App.deleteMedia = function (mediaId, btnElement) {
 
 	// Metode B: Kig efter upload-knappen (Fallback)
 	if (!collectionId) {
-		const parentUploadBtn = document.querySelector(
+		let parentUploadBtn = document.querySelector(
 			'.upload-input[data-context="collection_parent"]',
 		);
+		// Hvis ikke fundet, prøv Catalog (Master Toy)
+		if (!parentUploadBtn) {
+			parentUploadBtn = document.querySelector(
+				'.upload-input[data-context="catalog_parent"]',
+			);
+		}
+
 		if (parentUploadBtn && parentUploadBtn.dataset.id) {
 			collectionId = parentUploadBtn.dataset.id;
 		}
 	}
 
-	console.log('DEBUG: deleteMedia - Fundet Collection ID:', collectionId);
+	console.log('DEBUG: deleteMedia - Fundet ID:', collectionId);
 
 	// --- 2. UDFØR SLETNING ---
 	fetch(
@@ -367,22 +393,19 @@ App.deleteMedia = function (mediaId, btnElement) {
 					setTimeout(() => row.remove(), 300);
 				}
 
-				// --- 3. OPDATER KORTET BAGVED ---
-				// Vi bruger 'typeof' for at tjekke om Manageren findes, da den måske ikke er direkte på window-objektet
-				if (
-					collectionId &&
-					typeof CollectionMgr !== 'undefined' &&
-					typeof CollectionMgr.refreshItem === 'function'
-				) {
-					console.log('Media: Kalder refreshItem for ID:', collectionId);
-					CollectionMgr.refreshItem(collectionId);
-				} else {
-					console.error(
-						'Media: KAN IKKE OPDATERE KORTET! Mangler ID eller Manager. ID:',
-						collectionId,
-						'Manager Type:',
-						typeof CollectionMgr,
-					);
+				// --- 3. OPDATER KORTET BAGVED (Universal) ---
+				if (collectionId) {
+					if (
+						typeof CollectionMgr !== 'undefined' &&
+						typeof CollectionMgr.refreshItem === 'function'
+					) {
+						CollectionMgr.refreshItem(collectionId);
+					} else if (
+						typeof MasterToyMgr !== 'undefined' &&
+						typeof MasterToyMgr.refreshItem === 'function'
+					) {
+						MasterToyMgr.refreshItem(collectionId);
+					}
 				}
 			} else {
 				alert('Error deleting photo: ' + (data.error || 'Unknown error'));
@@ -399,6 +422,10 @@ App.finishCreateFlow = function () {
 	// 1. Luk modalen pænt
 	const modalEl = document.getElementById('appModal');
 	if (modalEl) {
+		if (document.activeElement) {
+			document.activeElement.blur();
+		}
+
 		const modal = bootstrap.Modal.getInstance(modalEl);
 		if (modal) modal.hide();
 
@@ -411,16 +438,24 @@ App.finishCreateFlow = function () {
 		}, 300);
 	}
 
-	// 2. Opdater visningen
+	// 2. Opdater visningen (Collection List)
 	if (
 		typeof CollectionMgr !== 'undefined' &&
 		document.getElementById('collectionGridContainer')
 	) {
-		// Hvis vi står på Collection-listen: Reload grid (side 1) så det nye item vises
 		console.log('Wizard finished: Reloading list view...');
 		CollectionMgr.loadPage(1);
-	} else {
-		// Hvis vi står på Dashboard eller andet sted: Reload hele siden
+	}
+	// 3. Opdater visningen (Master Toy List)
+	else if (
+		typeof MasterToyMgr !== 'undefined' &&
+		document.getElementById('masterToyGridContainer')
+	) {
+		console.log('Wizard finished: Reloading master toy list...');
+		MasterToyMgr.loadPage(1);
+	}
+	// 4. Fallback (Dashboard eller andet)
+	else {
 		console.log('Wizard finished: Reloading page...');
 		window.location.reload();
 	}

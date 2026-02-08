@@ -1,38 +1,51 @@
 const CollectionMgr = {
-	// Variabler til at holde styr p� tilstand
+	// Variabler til at holde styr på tilstand
 	currentPage: 1,
 	baseUrl: '/',
 	container: null,
 
 	init: function () {
-		// S�t Base URL sikkert (hvis App objektet findes)
+		console.log('CollectionMgr Init started');
+
+		// Sæt Base URL sikkert (hvis App objektet findes)
 		this.baseUrl =
 			typeof App !== 'undefined' && App.baseUrl ? App.baseUrl : '/';
 		this.container = document.getElementById('collectionGridContainer');
 
-		// Element referencer til filtre
+		// Element referencer til filtre (Inputs)
 		this.search = document.getElementById('searchCollection');
+
+		// --- GAMLE FILTRE ---
 		this.fUniverse = document.getElementById('filterUniverse');
 		this.fLine = document.getElementById('filterLine');
-		this.fEntSource = document.getElementById('filterEntSource');
+		this.fEntSource = document.getElementById('filterEntSource'); // I HTML hedder den ent_source i nogle versioner, tjek ID
+		if (!this.fEntSource)
+			this.fEntSource = document.getElementById('filterSource'); // Fallback hvis ID varierer
+
 		this.fStorage = document.getElementById('filterStorage');
 		this.fSource = document.getElementById('filterPurchaseSource');
 		this.fStatus = document.getElementById('filterStatus');
 
-		// 1. Start lyttere p� filtrene (hvis de findes)
+		// --- NYE FILTRE ---
+		this.fMan = document.getElementById('filterManufacturer');
+		this.fType = document.getElementById('filterProductType');
+		this.fComp = document.getElementById('filterCompleteness');
+		this.fMissing = document.getElementById('filterMissingParts');
+		this.fImg = document.getElementById('filterImage');
+
+		// 1. Start lyttere på filtrene
 		this.attachFilterListeners();
 
-		// 2. S�t knap-status baseret p� cookie
+		// 2. Sæt knap-status baseret på cookie
 		const match = document.cookie.match(
 			new RegExp('(^| )collection_view_mode=([^;]+)'),
 		);
 		const currentMode = match ? match[2] : 'list';
 		this.updateViewButtons(currentMode);
 
-		// 3. GLOBAL CLICK LISTENER (Den robuste l�sning)
-		// Vi lytter p� hele dokumentet, s� vi fanger klik fra b�de AJAX-indhold og statisk indhold
+		// 3. GLOBAL CLICK LISTENER (Den robuste løsning)
 		document.body.addEventListener('click', (e) => {
-			// Hj�lpefunktion: Find ID fra enten Card (div) eller Table Row (tr)
+			// Hjælpefunktion: Find ID fra enten Card (div) eller Table Row (tr)
 			const findId = (el) => {
 				const container = el.closest('[data-id]') || el.closest('tr');
 				return container ? container.dataset.id : null;
@@ -69,8 +82,9 @@ const CollectionMgr = {
 			}
 		});
 
-		// 4. Load indhold (KUN hvis vi er p� Collection-siden hvor containeren findes)
+		// 4. Load indhold (KUN hvis vi er på Collection-siden hvor containeren findes)
 		if (this.container) {
+			// Check om vi har en gemt side i hukommelsen eller start på 1
 			this.loadPage(1);
 		}
 	},
@@ -78,18 +92,19 @@ const CollectionMgr = {
 	// Skift visning (List/Cards)
 	switchView: function (mode) {
 		document.cookie =
-			'collection_view_mode=' + mode + '; path=/; max-age=31536000'; // Gem i 1 �r
+			'collection_view_mode=' + mode + '; path=/; max-age=31536000'; // Gem i 1 år
 		this.updateViewButtons(mode);
-		// Genindl�s listen hvis vi er p� collection siden
+
+		// Genindlæs listen hvis vi er på collection siden
 		if (this.container) {
 			this.loadPage(this.currentPage || 1);
 		} else {
-			// Hvis vi er p� dashboard eller andet sted, reload siden
+			// Hvis vi er på dashboard eller andet sted, reload siden
 			window.location.reload();
 		}
 	},
 
-	// Opdater visuel status p� knapperne
+	// Opdater visuel status på knapperne
 	updateViewButtons: function (mode) {
 		const btnList = document.getElementById('btn-view-list');
 		const btnCards = document.getElementById('btn-view-cards');
@@ -105,7 +120,7 @@ const CollectionMgr = {
 		}
 	},
 
-	// H�ndter sletning
+	// Håndter sletning
 	handleDelete: function (btn) {
 		if (
 			!confirm(
@@ -123,20 +138,24 @@ const CollectionMgr = {
 		// Visuel feedback
 		container.style.opacity = '0.3';
 
-		fetch(
-			`${this.baseUrl}?module=Collection&controller=Toy&action=get_item_html&id=${id}&t=${new Date().getTime()}`,
-		)
+		// Vi bruger et POST kald til delete actionen i stedet for get_item_html hacket
+		const formData = new FormData();
+		formData.append('id', id);
+
+		fetch(`${this.baseUrl}?module=Collection&controller=Toy&action=delete`, {
+			method: 'POST',
+			body: formData,
+		})
 			.then((res) => res.json())
 			.then((data) => {
 				if (data.success) {
 					if (window.App && App.showToast)
 						App.showToast('Item deleted successfully!');
 
-					// Hvis vi er p� collection siden -> reload grid via ajax
+					// Reload grid
 					if (this.container) {
 						this.loadPage(this.currentPage);
 					} else {
-						// Hvis vi er p� dashboard -> reload hele siden
 						window.location.reload();
 					}
 				} else {
@@ -159,6 +178,12 @@ const CollectionMgr = {
 			this.fStorage,
 			this.fSource,
 			this.fStatus,
+			// Nye filtre:
+			this.fMan,
+			this.fType,
+			this.fComp,
+			this.fMissing,
+			this.fImg,
 		];
 
 		filters.forEach((f) => {
@@ -176,27 +201,55 @@ const CollectionMgr = {
 
 	resetFilters: function () {
 		if (this.search) this.search.value = '';
-		// Nulstil alle selects i headeren
-		const selects = document.querySelectorAll('.card-header select');
-		selects.forEach((s) => (s.value = ''));
+
+		// Nulstil alle referencer vi kender
+		const filters = [
+			this.fUniverse,
+			this.fLine,
+			this.fEntSource,
+			this.fStorage,
+			this.fSource,
+			this.fStatus,
+			this.fMan,
+			this.fType,
+			this.fComp,
+			this.fMissing,
+			this.fImg,
+		];
+
+		filters.forEach((f) => {
+			if (f) f.value = '';
+		});
+
 		this.loadPage(1);
 	},
 
 	loadPage: function (page) {
 		this.currentPage = page;
 
+		// Byg parametre
 		const params = new URLSearchParams({
 			module: 'Collection',
 			controller: 'Toy',
 			action: 'index',
 			ajax_grid: 1,
 			page: page,
+
+			// Gamle
 			universe_id: this.fUniverse ? this.fUniverse.value : '',
 			line_id: this.fLine ? this.fLine.value : '',
 			ent_source_id: this.fEntSource ? this.fEntSource.value : '',
 			storage_id: this.fStorage ? this.fStorage.value : '',
 			source_id: this.fSource ? this.fSource.value : '',
 			status: this.fStatus ? this.fStatus.value : '',
+
+			// Nye
+			manufacturer_id: this.fMan ? this.fMan.value : '',
+			product_type_id: this.fType ? this.fType.value : '',
+			completeness: this.fComp ? this.fComp.value : '',
+			missing_parts: this.fMissing ? this.fMissing.value : '', // Bemærk navn matcher PHP
+			image_status: this.fImg ? this.fImg.value : '',
+
 			search: this.search ? this.search.value : '',
 		});
 
@@ -219,49 +272,62 @@ const CollectionMgr = {
 
 	// Opdaterer en enkelt række/kort uden at reloade hele siden
 	refreshItem: function (id) {
-		console.log('CollectionMgr: Starter refreshItem for ID:', id); // <--- DEBUG LOG 1
+		console.log('CollectionMgr: Refreshing item', id);
 
+		// Vi leder efter elementet med data-id attributten
+		// Dette virker både for table-row (tr) og grid-card (div)
 		const oldEl = document.querySelector(`[data-id="${id}"]`);
 
 		if (!oldEl) {
-			console.warn('Could not find element to refresh for ID:', id);
+			console.warn(
+				'CollectionMgr: Could not find element to refresh for ID:',
+				id,
+			);
 			return;
 		}
 
 		oldEl.style.opacity = '0.5';
 
-		// RETTELSE: Vi tilføjer &t=... for at undgå browser-cache af HTML'en
+		// Cache busting med &t=...
 		const url = `${this.baseUrl}?module=Collection&controller=Toy&action=get_item_html&id=${id}&t=${new Date().getTime()}`;
-		console.log('CollectionMgr: Fetching URL:', url); // <--- DEBUG LOG 2
 
 		fetch(url)
 			.then((res) => res.text())
 			.then((html) => {
-				console.log('CollectionMgr: Modtog HTML, længde:', html.length); // <--- DEBUG LOG 3
-
 				const temp = document.createElement('div');
 				temp.innerHTML = html;
-				const newEl = temp.querySelector(`[data-id="${id}"]`);
+
+				// 1. Prøv at finde elementet specifikt inde i svaret
+				let newEl = temp.querySelector(`[data-id="${id}"]`);
+
+				// 2. Hvis ikke fundet (fordi svaret måske ER elementet uden wrapper), brug første child
+				if (!newEl && temp.firstElementChild) {
+					// Tjek evt om ID matcher for en sikkerheds skyld, men ofte er det nok bare at tage elementet
+					newEl = temp.firstElementChild;
+				}
 
 				if (newEl) {
 					oldEl.replaceWith(newEl);
 
-					// Tjek om billedet er ændret (visuel kontrol i loggen)
-					const newImg = newEl.querySelector('img');
-					console.log(
-						'CollectionMgr: Nyt billede src:',
-						newImg ? newImg.src : 'Ingen billede',
-					); // <--- DEBUG LOG 4
+					// Flash effekt for visuel feedback
+					newEl.style.transition = 'background-color 0.5s ease';
+					// Gem den originale farve eller antag transparent/hvid
+					const isRow = newEl.tagName === 'TR';
+					const flashColor = isRow ? '#f8f9fa' : '#e8f5e9'; // Lidt forskellig farve til tabel/kort
 
-					newEl.style.transition = 'background-color 0.3s ease';
 					const originalBg = newEl.style.backgroundColor;
-					newEl.style.backgroundColor = '#eee'; // Din grå farve
+					newEl.style.backgroundColor = flashColor;
 
 					setTimeout(() => {
 						newEl.style.backgroundColor = originalBg || '';
 					}, 800);
+
+					console.log('CollectionMgr: Refresh success!');
 				} else {
-					console.error('New element structure not found in response');
+					console.error(
+						'CollectionMgr: Kunne ikke finde det nye element i svaret.',
+					);
+					oldEl.style.opacity = '1';
 				}
 			})
 			.catch((err) => {

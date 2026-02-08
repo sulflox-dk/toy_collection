@@ -285,8 +285,9 @@ class ToyModel {
         $offset = ($page - 1) * $perPage;
         $params = [];
         $where = [];
+        $having = []; // Til missing items logik
 
-        // Hoved-Query: Joiner Collection -> Master -> Stamdata
+        // Hoved-Query (Beholdt din originale query struktur)
         $sql = "SELECT ct.*, 
                        mt.name as toy_name,
                        mt.release_year as release_year,
@@ -298,24 +299,22 @@ class ToyModel {
                        su.name as storage_name,
                        ps.name as purchase_source_name,
                        
-                       -- Billede logik (Fallback til master)
+                       -- Billede logik
                        COALESCE(mf.file_path, mf_master.file_path) as image_path,
                        (CASE WHEN mf.file_path IS NULL AND mf_master.file_path IS NOT NULL THEN 1 ELSE 0 END) as is_stock_image,
 
                        (SELECT COUNT(*) FROM collection_toy_items WHERE collection_toy_id = ct.id) as item_count,
                        
-                       -- MISSING ITEMS LOGIK (RETTET)
+                       -- MISSING ITEMS LOGIK (Din originale subquery)
                        (
                            SELECT GROUP_CONCAT(s_missing.name SEPARATOR ', ')
                            FROM master_toy_items mti
                            JOIN subjects s_missing ON mti.subject_id = s_missing.id
-                           -- Vi tjekker om du ejer denne specifikke 'master_toy_item'
                            LEFT JOIN collection_toy_items cti_check 
                                   ON cti_check.collection_toy_id = ct.id 
-                                  AND cti_check.master_toy_item_id = mti.id  -- <--- RETTET HER: Bruger master_toy_item_id
+                                  AND cti_check.master_toy_item_id = mti.id
                            WHERE mti.master_toy_id = ct.master_toy_id
-                             AND cti_check.id IS NULL -- Vi vil kun have dem, brugeren IKKE har
-                             -- Blacklist / Filter typer:
+                             AND cti_check.id IS NULL
                              AND s_missing.type NOT IN ('Packaging', 'Paperwork')
                        ) as missing_items_list,
 
@@ -334,13 +333,12 @@ class ToyModel {
                 -- Billed joins
                 LEFT JOIN collection_toy_media_map ctmm ON ct.id = ctmm.collection_toy_id AND ctmm.is_main = 1
                 LEFT JOIN media_files mf ON ctmm.media_file_id = mf.id
-                
                 LEFT JOIN master_toy_media_map mtmm ON ct.master_toy_id = mtmm.master_toy_id AND mtmm.is_main = 1
                 LEFT JOIN media_files mf_master ON mtmm.media_file_id = mf_master.id";
 
         // --- FILTERS ---
 
-        // Filter til at hente ét specifikt legetøj (til partial refresh)
+        // ID Filter
         if (!empty($filters['id'])) {
             $where[] = "ct.id = :fid";
             $params['fid'] = $filters['id'];
@@ -360,12 +358,51 @@ class ToyModel {
             $params['esid'] = $filters['entertainment_source_id'];
         }
 
-        // Collection Data Filters
+        // --- NYE FILTRE ---
+        
+        // 1. Manufacturer
+        if (!empty($filters['manufacturer_id'])) {
+            $where[] = "tl.manufacturer_id = :mid";
+            $params['mid'] = $filters['manufacturer_id'];
+        }
+
+        // 2. Product Type
+        if (!empty($filters['product_type_id'])) {
+            $where[] = "mt.product_type_id = :ptid";
+            $params['ptid'] = $filters['product_type_id'];
+        }
+
+        // 3. Completeness Grade (Databasens felt)
+        if (!empty($filters['completeness'])) {
+            $where[] = "ct.completeness_grade = :comp";
+            $params['comp'] = $filters['completeness'];
+        }
+
+        // 4. Missing Parts (Beregnet felt - kræver HAVING)
+        if (!empty($filters['has_missing_parts'])) {
+            if ($filters['has_missing_parts'] === 'yes') {
+                $having[] = "missing_items_list IS NOT NULL";
+            } elseif ($filters['has_missing_parts'] === 'no') {
+                $having[] = "missing_items_list IS NULL";
+            }
+        }
+
+        // 5. Image Status
+        if (!empty($filters['image_status'])) {
+            if ($filters['image_status'] === 'has_image') {
+                // Tjekker om der er et collection-billede (ikke stock photo)
+                $where[] = "mf.file_path IS NOT NULL";
+            } elseif ($filters['image_status'] === 'missing_image') {
+                $where[] = "mf.file_path IS NULL";
+            }
+        }
+
+        // Collection Data Filters (Eksisterende)
         if (!empty($filters['storage_id'])) {
             $where[] = "ct.storage_id = :stid";
             $params['stid'] = $filters['storage_id'];
         }
-        if (!empty($filters['source_id'])) { // Purchase Source
+        if (!empty($filters['source_id'])) {
             $where[] = "ct.source_id = :srcid";
             $params['srcid'] = $filters['source_id'];
         }
@@ -374,7 +411,7 @@ class ToyModel {
             $params['acq'] = $filters['acquisition_status'];
         }
 
-        // Search (S�ger i b�de navn, ID og box code)
+        // Search
         if (!empty($filters['search'])) {
             $term = '%' . $filters['search'] . '%';
             $where[] = "(mt.name LIKE :s1 OR ct.personal_toy_id LIKE :s2 OR su.box_code LIKE :s3)";
@@ -387,31 +424,28 @@ class ToyModel {
             $sql .= " WHERE " . implode(' AND ', $where);
         }
 
+        if (!empty($having)) {
+            $sql .= " HAVING " . implode(' AND ', $having);
+        }
+
         // Count Total
         $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table";
         $total = $this->db->query($countSql, $params)->fetchColumn();
 
-        // --- SORTERING (Her kommer �ndringen til Dashboard) ---
-        
+        // Sort
         if (isset($filters['sort']) && $filters['sort'] === 'newest') {
-            // Dashboard: Vis nyeste tilf�jelser f�rst
             $sql .= " ORDER BY ct.id DESC";
         } else {
-            // Standard: Sorter alfabetisk efter leget�jsnavn
             $sql .= " ORDER BY mt.name ASC";
         }
 
-        // Limit og Offset
-        $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        // Limit
+        if (empty($filters['raw_result'])) {
+            $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        }
 
         $results = $this->db->query($sql, $params)->fetchAll();
 
-        // VIGTIGT: Returner i det format din Controller forventer (array vs raw data)
-        // I den gamle metode returnerede du et array med ['data', 'total', ...].
-        // Men din getRecentAdditions kaldte bare ->fetchAll() direkte.
-        // For at underst�tte BEGGE dele, g�r vi s�dan her:
-        
-        // Hvis vi kun skal bruge raw data (f.eks. til dashboardet som ikke bruger pagineringsobjektet direkte endnu)
         if (isset($filters['raw_result']) && $filters['raw_result'] === true) {
             return $results;
         }

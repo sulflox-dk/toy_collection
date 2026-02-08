@@ -19,12 +19,21 @@
 
 <div class="card shadow-sm border-0">
     <div class="card-header bg-white p-3">
+        
         <div class="row g-2 mb-2">
             <div class="col-md-3">
                 <select id="filterUniverse" class="form-select form-select-sm">
                     <option value="">All Universes</option>
                     <?php foreach($universes as $u): ?>
                         <option value="<?= $u['id'] ?>"><?= htmlspecialchars($u['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="filterManufacturer" class="form-select form-select-sm">
+                    <option value="">All Manufacturers</option>
+                    <?php foreach($manufacturers as $m): ?>
+                        <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -37,22 +46,16 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <select id="filterEntSource" class="form-select form-select-sm">
-                    <option value="">All Sources (Movies/Shows)</option>
-                    <?php foreach($ent_sources as $es): ?>
-                        <option value="<?= $es['id'] ?>"><?= htmlspecialchars($es['name']) ?></option>
+                <select id="filterProductType" class="form-select form-select-sm">
+                    <option value="">All Product Types</option>
+                    <?php foreach($productTypes as $pt): ?>
+                        <option value="<?= $pt['id'] ?>"><?= htmlspecialchars($pt['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-3">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" id="searchCollection" class="form-control" placeholder="Search name, ID, box...">
-                </div>
-            </div>
         </div>
 
-        <div class="row g-2">
+        <div class="row g-2 mb-2">
             <div class="col-md-3">
                 <select id="filterStorage" class="form-select form-select-sm">
                     <option value="">All Storage Units</option>
@@ -62,27 +65,51 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <select id="filterPurchaseSource" class="form-select form-select-sm">
-                    <option value="">All Purchase Sources</option>
-                    <?php foreach($purchase_sources as $ps): ?>
-                        <option value="<?= $ps['id'] ?>"><?= htmlspecialchars($ps['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-3">
                 <select id="filterStatus" class="form-select form-select-sm">
-                    <option value="">All Statuses</option>
+                    <option value="">Acquisition Status: All</option>
                     <?php foreach($statuses as $st): ?>
                         <option value="<?= $st ?>"><?= $st ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-3 text-end">
-                <button class="btn btn-sm btn-outline-secondary" onclick="CollectionMgr.resetFilters()">
-                    <i class="fas fa-undo me-1"></i> Reset Filters
+            <div class="col-md-3">
+                <select id="filterCompleteness" class="form-select form-select-sm">
+                    <option value="">Completeness Grade: All</option>
+                    <?php foreach($grades as $g): ?>
+                        <option value="<?= $g ?>"><?= $g ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="filterMissingParts" class="form-select form-select-sm">
+                    <option value="">Missing Parts: All</option>
+                    <option value="yes">Has Missing Parts</option>
+                    <option value="no">100% Complete</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row g-2">
+            <div class="col-md-3">
+                <select id="filterImage" class="form-select form-select-sm">
+                    <option value="">Image: All</option>
+                    <option value="has_image">My Photo Uploaded</option>
+                    <option value="missing_image">No Photo (Stock Only)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="searchCollection" class="form-control" placeholder="Search collection...">
+                </div>
+            </div>
+            <div class="col-md-4"></div> <div class="col-md-2 d-grid">
+                <button class="btn btn-sm btn-light border text-muted" onclick="CollectionMgr.resetFilters()">
+                    <i class="fas fa-times me-1"></i> Reset
                 </button>
             </div>
         </div>
+
     </div>
 
     <div class="card-body p-0" id="collectionGridContainer">

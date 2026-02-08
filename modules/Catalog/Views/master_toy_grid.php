@@ -172,7 +172,7 @@ $mode = $view_mode ?? 'list';
 
 <?php endif; ?>
 
-<?php if ($pages > 1): ?>
+<?php if (!isset($hide_pagination) && isset($pages) && $pages > 1): ?>
     <div class="p-3 border-top d-flex justify-content-center bg-light">
         <nav>
             <ul class="pagination pagination-sm mb-0">

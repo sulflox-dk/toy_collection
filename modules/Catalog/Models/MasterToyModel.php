@@ -14,8 +14,9 @@ class MasterToyModel {
         $offset = ($page - 1) * $perPage;
         $params = [];
         $where = [];
+        $having = [];
 
-        // Base Select (Husk DISTINCT er vigtig her, ellers får du dubletter hvis søgningen matcher flere items i samme æske)
+        // Base Select
         $sql = "SELECT DISTINCT mt.*, 
                        tl.name as line_name, 
                        m.name as manufacturer_name,
@@ -34,11 +35,16 @@ class MasterToyModel {
                 LEFT JOIN master_toy_media_map mtmm ON mt.id = mtmm.master_toy_id AND mtmm.is_main = 1
                 LEFT JOIN media_files mf ON mtmm.media_file_id = mf.id
                 
-                -- NYE JOINS TIL SØGNING (Aliased med '_search' for ikke at konflikte med andet)
+                -- JOINS TIL SÃ˜GNING
                 LEFT JOIN master_toy_items mti_search ON mt.id = mti_search.master_toy_id
                 LEFT JOIN subjects s_search ON mti_search.subject_id = s_search.id";
 
-        // --- FILTERS ---
+        // --- WHERE FILTERS ---
+
+        if (!empty($filters['id'])) {
+            $where[] = "mt.id = :id";
+            $params['id'] = $filters['id'];
+        }
 
         if (!empty($filters['universe_id'])) {
             $where[] = "tl.universe_id = :uid";
@@ -55,14 +61,35 @@ class MasterToyModel {
             $params['esid'] = $filters['source_id'];
         }
 
-        // UPDATED SEARCH FILTER
+        // --- NYT: MANUFACTURER FILTER ---
+        if (!empty($filters['manufacturer_id'])) {
+            $where[] = "tl.manufacturer_id = :mid";
+            $params['mid'] = $filters['manufacturer_id'];
+        }
+
+        // --- NYT: PRODUCT TYPE FILTER ---
+        if (!empty($filters['product_type_id'])) {
+            $where[] = "mt.product_type_id = :ptid";
+            $params['ptid'] = $filters['product_type_id'];
+        }
+
+        // --- NYT: IMAGE STATUS FILTER ---
+        if (!empty($filters['image_status'])) {
+            if ($filters['image_status'] === 'has_image') {
+                $where[] = "mf.file_path IS NOT NULL";
+            } elseif ($filters['image_status'] === 'missing_image') {
+                $where[] = "mf.file_path IS NULL";
+            }
+        }
+        // --------------------------------
+
         if (!empty($filters['search'])) {
             $term = '%' . $filters['search'] . '%';
             $where[] = "(
                 mt.name LIKE :s1 OR 
                 mt.assortment_sku LIKE :s2 OR 
                 mt.wave_number LIKE :s3 OR
-                s_search.name LIKE :s4  -- NY SØGEBETINGELSE
+                s_search.name LIKE :s4
             )";
             $params['s1'] = $term;
             $params['s2'] = $term;
@@ -74,25 +101,33 @@ class MasterToyModel {
             $sql .= " WHERE " . implode(' AND ', $where);
         }
 
-        // Count Total (Distinct er vigtig her også)
-        $countSql = "SELECT COUNT(DISTINCT mt.id) FROM master_toys mt 
-                     LEFT JOIN toy_lines tl ON mt.line_id = tl.id 
-                     LEFT JOIN master_toy_items mti_search ON mt.id = mti_search.master_toy_id
-                     LEFT JOIN subjects s_search ON mti_search.subject_id = s_search.id
-                     WHERE " . (!empty($where) ? implode(' AND ', $where) : '1=1');
-                     
-        // Bemærk: Jeg har forsimplet countSql lidt herover for at matche where-klausulerne korrekt uden at joine alt det unødvendige (billeder osv.) i tælleren.
-        // Men den nemmeste "safe fix" hvis ovenstående driller, er at bruge subquery metoden fra før:
-        // $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table"; 
-        // Lad os holde os til subquery metoden, den er mest sikker med dine filtre:
+        // --- HAVING CLAUSE (Owned Status) ---
+        if (!empty($filters['owned_status'])) {
+            if ($filters['owned_status'] === 'owned') {
+                $having[] = "collection_count > 0";
+            } elseif ($filters['owned_status'] === 'not_owned') {
+                $having[] = "collection_count = 0";
+            }
+        }
+
+        if (!empty($having)) {
+            $sql .= " HAVING " . implode(' AND ', $having);
+        }
+
+        // --- Count Total ---
         $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table";
-        
         $total = $this->db->query($countSql, $params)->fetchColumn();
 
-        // Sort & Limit
-        $sql .= " ORDER BY mt.name ASC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        // --- Sort & Limit ---
+        if (empty($filters['raw_result'])) {
+            $sql .= " ORDER BY mt.name ASC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        }
 
         $results = $this->db->query($sql, $params)->fetchAll();
+
+        if (!empty($filters['raw_result'])) {
+            return $results;
+        }
 
         return [
             'data' => $results,
@@ -103,8 +138,8 @@ class MasterToyModel {
     }
 
     public function delete($id) {
-        // Bemærk: Sletning af master toy er farligt hvis det bruges i collection_toys.
-        // Vi bør tjekke først.
+        // Bemï¿½rk: Sletning af master toy er farligt hvis det bruges i collection_toys.
+        // Vi bï¿½r tjekke fï¿½rst.
         $usage = $this->db->query("SELECT COUNT(*) FROM collection_toys WHERE master_toy_id = :id", ['id' => $id])->fetchColumn();
         if ($usage > 0) {
             throw new \Exception("Cannot delete Toy. It is used in $usage Collection entries.");
@@ -126,7 +161,7 @@ class MasterToyModel {
                 $mediaModel->delete($mid);
             }
             
-            // C. Slet selve item-rækken
+            // C. Slet selve item-rï¿½kken
             $this->db->query("DELETE FROM master_toy_items WHERE id = :id", ['id' => $item['id']]);
         }
 
@@ -140,7 +175,7 @@ class MasterToyModel {
             $mediaModel->delete($mid);
         }
 
-        // 3. SLET MASTER TOY DATA (Hoved-rækken)
+        // 3. SLET MASTER TOY DATA (Hoved-rï¿½kken)
         return $this->db->query("DELETE FROM master_toys WHERE id = :id", ['id' => $id]);
 
     }
@@ -160,7 +195,7 @@ class MasterToyModel {
     }
 
     public function create($data) {
-        // 1. Træk items ud af data-arrayet (så det ikke ødelægger INSERT)
+        // 1. Trï¿½k items ud af data-arrayet (sï¿½ det ikke ï¿½delï¿½gger INSERT)
         $items = $data['items'] ?? [];
         unset($data['items']);
 
@@ -183,11 +218,11 @@ class MasterToyModel {
     }
 
     public function update($id, $data) {
-        // 1. Træk items ud
+        // 1. Trï¿½k items ud
         $items = $data['items'] ?? [];
         unset($data['items']);
 
-        // 2. Tilføj ID til params
+        // 2. Tilfï¿½j ID til params
         $data['id'] = $id;
 
         // 3. Opdater Master Toy
@@ -203,7 +238,7 @@ class MasterToyModel {
         
         $this->db->query($sql, $data);
 
-        // 4. Opdater Items (Slet gamle -> Indsæt nye)
+        // 4. Opdater Items (Slet gamle -> Indsï¿½t nye)
         $this->saveItems($id, $items);
     }
 
@@ -214,7 +249,7 @@ class MasterToyModel {
             ['id' => $masterToyId]
         )->fetchAll(\PDO::FETCH_COLUMN);
 
-        // Hvis formen er tom, slet alt (med forsigtighed, men nødvendigt)
+        // Hvis formen er tom, slet alt (med forsigtighed, men nï¿½dvendigt)
         if (empty($items)) {
             if (!empty($existingIds)) {
                 $idsStr = implode(',', array_map('intval', $existingIds));
@@ -223,7 +258,7 @@ class MasterToyModel {
             return;
         }
 
-        $processedIds = []; // Holder styr på hvilke IDs vi har håndteret (opdateret/oprettet)
+        $processedIds = []; // Holder styr pï¿½ hvilke IDs vi har hï¿½ndteret (opdateret/oprettet)
 
         // 2. Loop gennem de items der kommer fra formen
         foreach ($items as $item) {
@@ -256,7 +291,7 @@ class MasterToyModel {
                     'var'  => $item['variant_description'],
                     'qty'  => $item['quantity']
                 ]);
-                // (Nye items har ingen relationer endnu, så det er fint)
+                // (Nye items har ingen relationer endnu, sï¿½ det er fint)
             }
         }
 

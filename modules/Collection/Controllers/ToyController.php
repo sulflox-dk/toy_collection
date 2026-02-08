@@ -10,6 +10,8 @@ use CollectionApp\Modules\Catalog\Models\ToyLineModel;
 use CollectionApp\Modules\Universe\Models\UniverseModel;
 use CollectionApp\Modules\Universe\Models\EntertainmentSourceModel;
 use CollectionApp\Modules\Collection\Models\StorageModel;
+use CollectionApp\Modules\Catalog\Models\ManufacturerModel;
+use CollectionApp\Modules\Catalog\Models\ProductTypeModel; // <--- NY
 
 class ToyController extends Controller {
 
@@ -238,22 +240,28 @@ class ToyController extends Controller {
             exit;
         }
 
-        // Hent data til filtre
+        // Models
         $uniModel = new UniverseModel();
         $lineModel = new ToyLineModel();
         $sourceModel = new EntertainmentSourceModel();
         $storageModel = new StorageModel();
+        $manModel = new ManufacturerModel(); // NY
+        $ptModel = new ProductTypeModel();   // NY
         $db = Database::getInstance();
 
-        $this->view->render('index', [ // Bem�rk filnavnet 'index' (ikke toy_index, hvis vi f�lger alm. struktur i mappen)
+        $this->view->render('index', [
             'title' => 'My Collection',
             'universes' => $uniModel->getAllSimple(),
             'lines' => $lineModel->getAllSimple(),
+            'manufacturers' => $manModel->getAllSimple(), // NY
+            'productTypes' => $ptModel->getAllSimple(),   // NY
             'ent_sources' => $sourceModel->getAllSimple(),
             'storage_units' => $storageModel->getAllSimple(),
             'purchase_sources' => $db->query("SELECT * FROM sources ORDER BY name")->fetchAll(),
             'statuses' => $db->getEnumValues('collection_toys', 'acquisition_status'),
-            // Scripts: Vi genbruger collection-form.js (til add/edit) og collection-media.js
+            'conditions' => $db->getEnumValues('collection_toys', 'condition'), // NY (til completeness/condition filter)
+            'grades' => $db->getEnumValues('collection_toys', 'completeness_grade'), // NY
+            
             'scripts' => [
                 'assets/js/collection-form.js',
                 'assets/js/collection_manager.js',
@@ -265,13 +273,20 @@ class ToyController extends Controller {
     private function renderGrid() {
         $page = (int)($_GET['page'] ?? 1);
         $filters = [
-            'universe_id' => $_GET['universe_id'] ?? '',
-            'line_id'     => $_GET['line_id'] ?? '',
+            'universe_id'           => $_GET['universe_id'] ?? '',
+            'line_id'               => $_GET['line_id'] ?? '',
+            'manufacturer_id'       => $_GET['manufacturer_id'] ?? '', // NY
+            'product_type_id'       => $_GET['product_type_id'] ?? '', // NY
             'entertainment_source_id' => $_GET['ent_source_id'] ?? '',
-            'storage_id'  => $_GET['storage_id'] ?? '',
-            'source_id'   => $_GET['source_id'] ?? '', // Purchase Source
-            'acquisition_status' => $_GET['status'] ?? '',
-            'search'      => $_GET['search'] ?? ''
+            'storage_id'            => $_GET['storage_id'] ?? '',
+            'source_id'             => $_GET['source_id'] ?? '',
+            'acquisition_status'    => $_GET['status'] ?? '',
+            
+            'completeness'          => $_GET['completeness'] ?? '',    // NY (Grade)
+            'has_missing_parts'     => $_GET['missing_parts'] ?? '',   // NY (Beregnet)
+            'image_status'          => $_GET['image_status'] ?? '',    // NY
+            
+            'search'                => $_GET['search'] ?? ''
         ];
 
         $data = $this->toyModel->getFiltered($filters, $page, 20);

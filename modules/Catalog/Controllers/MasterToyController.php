@@ -4,16 +4,19 @@ namespace CollectionApp\Modules\Catalog\Controllers;
 use CollectionApp\Kernel\Controller;
 use CollectionApp\Modules\Catalog\Models\MasterToyModel;
 use CollectionApp\Modules\Catalog\Models\ToyLineModel;
-use CollectionApp\Modules\Catalog\Models\ManufacturerModel; // <--- NY
+use CollectionApp\Modules\Catalog\Models\ManufacturerModel;
+use CollectionApp\Modules\Catalog\Models\ProductTypeModel; // <--- NY
 use CollectionApp\Modules\Universe\Models\UniverseModel;
 use CollectionApp\Modules\Universe\Models\EntertainmentSourceModel;
 use CollectionApp\Modules\Universe\Models\SubjectModel;
+use CollectionApp\Modules\Media\Models\MediaModel;
 
 class MasterToyController extends Controller {
 
     private $model;
     private $lineModel;
     private $manModel; // <--- NY
+    private $ptModel;
     private $uniModel;
     private $sourceModel;
     private $subModel;
@@ -23,6 +26,7 @@ class MasterToyController extends Controller {
         $this->model = new MasterToyModel();
         $this->lineModel = new ToyLineModel();
         $this->manModel = new ManufacturerModel(); // <--- NY
+        $this->ptModel = new ProductTypeModel();
         $this->uniModel = new UniverseModel();
         $this->sourceModel = new EntertainmentSourceModel();
         $this->subModel = new SubjectModel();
@@ -39,7 +43,10 @@ class MasterToyController extends Controller {
 
         $universes = $this->uniModel->getAllWithStats();
         $lines = $this->lineModel->getAllSimple();
-        $sources = $this->sourceModel->getAllSimple(); 
+        $sources = $this->sourceModel->getAllSimple();
+        $manufacturers = $this->manModel->getAllSimple();
+        $productTypes = $this->ptModel->getAllSimple();
+
         $initialData = $this->model->getFiltered([], 1, 20);
 
         $viewMode = $_COOKIE['catalog_view_mode'] ?? 'list';
@@ -49,6 +56,8 @@ class MasterToyController extends Controller {
             'universes' => $universes,
             'lines' => $lines,
             'sources' => $sources,
+            'manufacturers' => $manufacturers, // <--- NY
+            'productTypes' => $productTypes,   // <--- NY
             'initialData' => $initialData,
             'view_mode' => $viewMode,
             'scripts' => [
@@ -62,10 +71,18 @@ class MasterToyController extends Controller {
     private function renderGrid() {
         $page = (int)($_GET['page'] ?? 1);
         $filters = [
-            'universe_id' => $_GET['universe_id'] ?? '',
-            'line_id'     => $_GET['line_id'] ?? '',
-            'source_id'   => $_GET['source_id'] ?? '',
-            'search'      => $_GET['search'] ?? ''
+            'universe_id'     => $_GET['universe_id'] ?? null,
+            'line_id'         => $_GET['line_id'] ?? null,
+            'source_id'       => $_GET['source_id'] ?? null,
+            
+            // Tjek at disse linjer er med:
+            'manufacturer_id' => $_GET['manufacturer_id'] ?? null,
+            'product_type_id' => $_GET['product_type_id'] ?? null,
+            'image_status'    => $_GET['image_status'] ?? null,
+            // ---------------------------
+            
+            'owned_status'    => $_GET['owned_status'] ?? null,
+            'search'          => $_GET['search'] ?? null,
         ];
 
         $data = $this->model->getFiltered($filters, $page, 20);
@@ -242,4 +259,32 @@ class MasterToyController extends Controller {
             'mode' => $_GET['mode'] ?? 'edit'
         ], 'Catalog');
     }
+    
+    // --- Hent HTML for ét kort (til Smart Refresh) ---
+    public function get_item_html() {
+        $id = (int)($_GET['id'] ?? 0);
+        if (!$id) exit('Error: No ID');
+
+        $filters = ['id' => $id];
+        
+        // Hent data - raw_result giver os rækkerne direkte
+        $results = $this->model->getFiltered($filters, 1, 1);
+        $toys = isset($results['data']) ? $results['data'] : $results;
+
+        if (empty($toys)) exit('Item not found');
+
+        // Cache busting til billede
+        if (!empty($toys[0]['image_path'])) {
+            $toys[0]['image_path'] .= '?t=' . time();
+        }
+
+        $data = [
+            'data' => $toys, // <--- RETTET HER: Ændret fra 'initialData' til 'data'
+            'view_mode' => $_COOKIE['catalog_view_mode'] ?? 'list',
+            'hide_pagination' => true
+        ];
+
+        $this->view->renderPartial('master_toy_grid', $data, 'Catalog');
+    }
+
 }
