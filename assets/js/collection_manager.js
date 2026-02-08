@@ -123,11 +123,9 @@ const CollectionMgr = {
 		// Visuel feedback
 		container.style.opacity = '0.3';
 
-		fetch(`${this.baseUrl}?module=Collection&controller=Toy&action=delete`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: `id=${id}`,
-		})
+		fetch(
+			`${this.baseUrl}?module=Collection&controller=Toy&action=get_item_html&id=${id}&t=${new Date().getTime()}`,
+		)
 			.then((res) => res.json())
 			.then((data) => {
 				if (data.success) {
@@ -221,8 +219,8 @@ const CollectionMgr = {
 
 	// Opdaterer en enkelt række/kort uden at reloade hele siden
 	refreshItem: function (id) {
-		// Find det eksisterende element
-		// (data-id sidder på <tr> i tabel og .card i card view)
+		console.log('CollectionMgr: Starter refreshItem for ID:', id); // <--- DEBUG LOG 1
+
 		const oldEl = document.querySelector(`[data-id="${id}"]`);
 
 		if (!oldEl) {
@@ -230,60 +228,49 @@ const CollectionMgr = {
 			return;
 		}
 
-		// Visuel feedback: Gør den lidt gennemsigtig mens vi henter
 		oldEl.style.opacity = '0.5';
 
-		fetch(
-			`${this.baseUrl}?module=Collection&controller=Toy&action=get_item_html&id=${id}`,
-		)
+		// RETTELSE: Vi tilføjer &t=... for at undgå browser-cache af HTML'en
+		const url = `${this.baseUrl}?module=Collection&controller=Toy&action=get_item_html&id=${id}&t=${new Date().getTime()}`;
+		console.log('CollectionMgr: Fetching URL:', url); // <--- DEBUG LOG 2
+
+		fetch(url)
 			.then((res) => res.text())
 			.then((html) => {
-				// Vi skaber en midlertidig container for at parse HTML'en
+				console.log('CollectionMgr: Modtog HTML, længde:', html.length); // <--- DEBUG LOG 3
+
 				const temp = document.createElement('div');
 				temp.innerHTML = html;
-
-				// Find det nye element inde i svaret
 				const newEl = temp.querySelector(`[data-id="${id}"]`);
 
 				if (newEl) {
-					// ERSTAT DET GAMLE MED DET NYE
 					oldEl.replaceWith(newEl);
 
-					// Flash effekt (Gul baggrund i 1 sek)
-					newEl.style.transition = 'background-color 0.5s ease';
+					// Tjek om billedet er ændret (visuel kontrol i loggen)
+					const newImg = newEl.querySelector('img');
+					console.log(
+						'CollectionMgr: Nyt billede src:',
+						newImg ? newImg.src : 'Ingen billede',
+					); // <--- DEBUG LOG 4
+
+					newEl.style.transition = 'background-color 0.3s ease';
 					const originalBg = newEl.style.backgroundColor;
-					newEl.style.backgroundColor = '#fff3cd'; // Bootstrap warning color (lys gul)
+					newEl.style.backgroundColor = '#eee'; // Din grå farve
 
 					setTimeout(() => {
 						newEl.style.backgroundColor = originalBg || '';
 					}, 800);
 				} else {
 					console.error('New element structure not found in response');
-					// Fallback: Hvis noget gik galt, reload hele siden
-					// window.location.reload();
 				}
 			})
 			.catch((err) => {
 				console.error('Refresh failed:', err);
-				oldEl.style.opacity = '1'; // Reset opacity ved fejl
+				oldEl.style.opacity = '1';
 			});
 	},
 };
 
 document.addEventListener('DOMContentLoaded', () => {
 	CollectionMgr.init();
-
-	// Hack til reload efter save (Hvis CollectionForm bruges)
-	/*if (window.CollectionForm) {
-		window.CollectionForm.handleSaveSuccess = function (data) {
-			if (window.App && App.showToast) App.showToast('Saved successfully!');
-
-			// Hvis container findes, reload kun grid. Ellers reload side (dashboard).
-			if (document.getElementById('collectionGridContainer')) {
-				CollectionMgr.loadPage(CollectionMgr.currentPage || 1);
-			} else {
-				window.location.reload();
-			}
-		};
-	}*/
 });

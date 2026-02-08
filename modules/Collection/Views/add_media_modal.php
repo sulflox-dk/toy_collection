@@ -79,8 +79,17 @@ $mediaJson = json_encode([
 
 <div class="modal-footer bg-light">
     <?php if($isCreate): ?>
-        <a href="?module=dashboard" class="btn btn-link text-muted text-decoration-none me-auto">Finish without adding photos</a>
-        <a href="?module=dashboard" class="btn btn-dark px-4">Finish and Go to Dashboard</a>
+        <button type="button" 
+                class="btn btn-link text-muted text-decoration-none me-auto" 
+                onclick="App.finishCreateFlow()">
+            Finish without adding photos
+        </button>
+        
+        <button type="button" 
+                class="btn btn-dark px-4" 
+                onclick="App.finishCreateFlow()">
+            Finish
+        </button>
     <?php else: ?>
         <button type="button" class="btn btn-dark px-4" data-bs-dismiss="modal">Close</button>
     <?php endif; ?>

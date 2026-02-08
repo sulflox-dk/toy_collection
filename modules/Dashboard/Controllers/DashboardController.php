@@ -36,6 +36,7 @@ class DashboardController extends Controller {
             'scripts'    => [
                 'assets/js/collection-core.js',
                 'assets/js/collection-form.js',
+                'assets/js/collection_manager.js',
                 'assets/js/collection-media.js',
                 'assets/js/dashboard.js'
             ]

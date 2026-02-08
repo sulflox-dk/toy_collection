@@ -560,79 +560,59 @@ window.CollectionForm = {
 		App.openModal('Collection', 'Toy', 'media_step', { id: id });
 	},
 
-	// --- AGGRESSIV LUKKE-FUNKTION ---
-	// Callback når noget gemmes. Modtager data og valgfrit formId
+	// Callback når noget gemmes
 	handleSaveSuccess: function (data, formId) {
 		const modalEl = document.getElementById('appModal');
 
-		// 1. Gem ID til opdatering af kortet FØR vi lukker modalen
+		// 1. Find ID
 		let refreshId = null;
 		if (data && data.id) {
-			refreshId = data.id; // Brug ID fra server-svaret hvis muligt
+			refreshId = data.id;
 		} else if (formId) {
-			// Ellers prøv at fiske det fra formen
 			const form = document.getElementById(formId);
 			const idInput = form ? form.querySelector('input[name="id"]') : null;
 			refreshId = idInput ? idInput.value : null;
 		}
 
-		// 2. LUK MODALEN (Med alle midler!)
+		// 2. Luk modalen
 		if (modalEl) {
-			// A. Prøv den pæne Bootstrap-måde
 			const modal = bootstrap.Modal.getInstance(modalEl);
-			if (modal) {
-				console.log('yessir');
-				modal.hide();
-			} else {
-				console.log('wtf');
-				// B. Prøv at klikke på luk-knappen
-				const closeBtn = modalEl.querySelector(
-					'.btn-close, [data-bs-dismiss="modal"]',
-				);
-				if (closeBtn) {
-					console.log('I can boogie');
-					closeBtn.click();
-				}
-			}
+			if (modal) modal.hide();
 
-			// C. RYD OP MANUELT (Hvis den stadig er åben efter et øjeblik eller som sikkerhedsnet)
-			// Vi fjerner klasserne og stylingen manuelt for at være sikre
+			const closeBtn = modalEl.querySelector(
+				'.btn-close, [data-bs-dismiss="modal"]',
+			);
+			if (closeBtn) closeBtn.click();
+
 			setTimeout(() => {
 				if (modalEl.classList.contains('show')) {
-					console.warn('Forcing modal close manually');
 					modalEl.classList.remove('show');
 					modalEl.style.display = 'none';
-					modalEl.setAttribute('aria-hidden', 'true');
 					document.body.classList.remove('modal-open');
-					document.body.style.overflow = '';
-					document.body.style.paddingRight = '';
-
 					const backdrops = document.querySelectorAll('.modal-backdrop');
 					backdrops.forEach((bd) => bd.remove());
 				}
-			}, 100); // Kør efter 100ms
+			}, 100);
 		}
 
 		App.showToast('Saved successfully!');
 
-		// 3. SMART REFRESH AF KORTET
-		const isCollectionList = !!document.getElementById(
-			'collectionGridContainer',
-		);
+		// 3. UNIVERSEL SMART REFRESH
+		// Tjek om Manageren er indlæst
+		const mgrAvailable = typeof CollectionMgr !== 'undefined';
 
-		if (data && data.success && window.CollectionMgr && isCollectionList) {
-			// Hvis vi har et ID og kortet findes -> Opdater kun kortet
-			if (refreshId && document.querySelector(`[data-id="${refreshId}"]`)) {
-				CollectionMgr.refreshItem(refreshId);
-			} else {
-				// Ellers reload (f.eks. nyt item)
-				setTimeout(
-					() => CollectionMgr.loadPage(CollectionMgr.currentPage || 1),
-					300,
-				);
-			}
+		// Tjek om kortet rent faktisk findes i DOM'en på den nuværende side
+		const cardOnPage = refreshId
+			? document.querySelector(`[data-id="${refreshId}"]`)
+			: null;
+
+		if (data && data.success && mgrAvailable && cardOnPage) {
+			// YES: Kortet er her -> Opdater det (Gælder både Collection List og Dashboard)
+			console.log('Smart Refresh: Updating item ' + refreshId);
+			CollectionMgr.refreshItem(refreshId);
 		} else {
-			// Fallback: Reload hele siden
+			// NO: Kortet mangler (f.eks. ny oprettelse) eller fejl -> Reload siden
+			console.log('Smart Refresh: Item not found or new -> Reloading page');
 			setTimeout(() => window.location.reload(), 300);
 		}
 	},
