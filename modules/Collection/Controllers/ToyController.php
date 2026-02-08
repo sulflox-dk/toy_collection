@@ -144,10 +144,11 @@ class ToyController extends Controller {
         $id = (int)($_POST['id'] ?? 0);
         if (!$id) {
             http_response_code(400);
-            echo "Error: Missing ID";
+            echo json_encode(['success' => false, 'error' => 'Missing ID']);
             exit;
         }
 
+        // 1. Opdater Parent Data
         $parentData = [
             'master_toy_id' => $_POST['master_toy_id'],
             'is_loose' => isset($_POST['is_loose']) ? 1 : 0,
@@ -164,31 +165,16 @@ class ToyController extends Controller {
         
         $this->toyModel->update($id, $parentData);
 
+        // 2. Kør Smart Sync på Items (Håndterer opret, opdater og slet)
         if (isset($_POST['items']) && is_array($_POST['items'])) {
-            foreach ($_POST['items'] as $item) {
-                if (isset($item['id']) && $item['id']) {
-                    $childData = [
-                        'mid' => $item['master_toy_item_id'],
-                        'cond' => $this->nullIfEmpty($item['condition']),
-                        'loose' => isset($item['is_loose']) ? 1 : 0,
-                        'is_repo' => $this->nullIfEmpty($item['is_reproduction']),
-                        'comments' => $this->nullIfEmpty($item['user_comments']),
-                        'p_date' => $this->nullIfEmpty($item['purchase_date']),
-                        'p_price' => $this->nullIfEmpty($item['purchase_price']),
-                        'src_id' => $this->nullIfEmpty($item['source_id']),
-                        'acq_status' => $this->nullIfEmpty($item['acquisition_status']),
-                        'exp_date' => $this->nullIfEmpty($item['expected_arrival_date']),
-                        'pers_id' => $this->nullIfEmpty($item['personal_item_id']),
-                        'stor_id' => $this->nullIfEmpty($item['storage_id'])
-                    ];
-                    
-                    $this->toyModel->updateItem($item['id'], $childData);
-                } 
-            }
+            $this->toyModel->saveItems($id, $_POST['items']);
+        } else {
+            // Hvis arrayet er tomt (bruger har slettet alt), skal saveItems stadig kaldes for at slette i DB
+            $this->toyModel->saveItems($id, []);
         }
         
         header('Content-Type: application/json');
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true, 'id' => $id]);
         exit;
     }
 
@@ -259,7 +245,7 @@ class ToyController extends Controller {
         $storageModel = new StorageModel();
         $db = Database::getInstance();
 
-        $this->view->render('index', [ // Bem�rk filnavnet 'index' (ikke toy_index, hvis vi f�lger alm. struktur i mappen)
+        $this->view->render('index', [ // Bem�rk filnavnet 'index' (ikke toy_index, hvis vi f�lger alm. struktur i mappen)
             'title' => 'My Collection',
             'universes' => $uniModel->getAllSimple(),
             'lines' => $lineModel->getAllSimple(),
@@ -314,6 +300,29 @@ class ToyController extends Controller {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         exit;
+    }
+
+    // --- FUNKTION TIL PARTIAL REFRESH ---
+    public function get_item_html() {
+        $id = (int)($_GET['id'] ?? 0);
+        if (!$id) exit('Error: No ID');
+
+        // Vi genbruger getFiltered for at få alle joins, billeder og missing items med
+        // Vi beder om 'raw_result' => true for at slippe for paginerings-arrayet
+        $results = $this->toyModel->getFiltered(['id' => $id, 'raw_result' => true], 1, 1);
+
+        if (empty($results)) exit('Item not found');
+
+        // Klargør data til grid.php
+        $data = [
+            'data' => $results,
+            // Vi sender view_mode med, så den ved om det skal være tr eller card
+            'view_mode' => $_COOKIE['collection_view_mode'] ?? 'list', 
+            'hide_pagination' => true // Ingen sidetal
+        ];
+
+        // Render grid.php (som nu kun indeholder 1 element)
+        $this->view->renderPartial('grid', $data, 'Collection');
     }
 
 }

@@ -28,7 +28,7 @@ class MasterToyController extends Controller {
         $this->subModel = new SubjectModel();
     }
 
-    // ... (index, renderGrid, delete, modal_step1 metoderne er uændrede) ...
+    // ... (index, renderGrid, delete, modal_step1 metoderne er uï¿½ndrede) ...
 
     public function index() {
         // (Behold din eksisterende index metode her)
@@ -103,17 +103,17 @@ class MasterToyController extends Controller {
             
             $toy['items'] = $this->model->getItems($toyId);
 
-            // Hent de tilknyttede ID'er fra legetøjet
+            // Hent de tilknyttede ID'er fra legetï¿½jet
             $universeId = $toy['universe_id'];
             $manufacturerId = $toy['manufacturer_id'];
 
-            // Hent Manufacturers for det pågældende univers
+            // Hent Manufacturers for det pï¿½gï¿½ldende univers
             if ($universeId) {
                 $manResult = $this->manModel->getFiltered(['universe_id' => $universeId], 1, 1000);
                 $manufacturers = $manResult['data'] ?? [];
             }
 
-            // Hent KUN Toy Lines for den pågældende producent
+            // Hent KUN Toy Lines for den pï¿½gï¿½ldende producent
             if ($manufacturerId) {
                 $lineResult = $this->lineModel->getFiltered(['manufacturer_id' => $manufacturerId], 1, 1000);
                 $lines = $lineResult['data'] ?? [];
@@ -124,7 +124,7 @@ class MasterToyController extends Controller {
             $manResult = $this->manModel->getFiltered(['universe_id' => $universeId], 1, 1000);
             $manufacturers = $manResult['data'] ?? [];
             
-            // Lines forbliver tomme indtil brugeren vælger en producent i UI (håndteres af JS)
+            // Lines forbliver tomme indtil brugeren vï¿½lger en producent i UI (hï¿½ndteres af JS)
             $lines = [];
         }
 
@@ -150,11 +150,12 @@ class MasterToyController extends Controller {
 
     private function getPostData() {
         $items = [];
-        // Byg items arrayet (uændret)
+        // Byg items arrayet (uï¿½ndret)
         if (isset($_POST['items']) && is_array($_POST['items'])) {
             foreach ($_POST['items'] as $i) {
                 if (!empty($i['subject_id'])) {
                     $items[] = [
+                        'id' => isset($i['id']) ? (int)$i['id'] : null,    
                         'subject_id' => (int)$i['subject_id'],
                         'variant_description' => trim($i['variant_description'] ?? ''),
                         'quantity' => (int)($i['quantity'] ?? 1)
@@ -163,7 +164,7 @@ class MasterToyController extends Controller {
             }
         }
 
-        // Helper til at håndtere NULL værdier
+        // Helper til at hï¿½ndtere NULL vï¿½rdier
         $toIntOrNull = function($val) {
             return !empty($val) ? (int)$val : null;
         };
@@ -171,7 +172,6 @@ class MasterToyController extends Controller {
         return [
             'line_id' => (int)$_POST['line_id'],
             'product_type_id' => (int)$_POST['product_type_id'],
-            // FIX: Brug helperen herunder, så tom værdi bliver NULL
             'entertainment_source_id' => $toIntOrNull($_POST['entertainment_source_id']),
             'name' => trim($_POST['name']),
             'release_year' => $toIntOrNull($_POST['release_year']),
@@ -199,7 +199,7 @@ class MasterToyController extends Controller {
         });
     }
 
-    // Denne skal også findes:
+    // Denne skal ogsï¿½ findes:
     public function update() {
         $this->jsonHandler(function() {
             $id = (int)$_POST['id'];
@@ -227,7 +227,7 @@ class MasterToyController extends Controller {
         
         $availableTags = $mediaModel->getMediaTags();
         
-        // Hent billeder for parent (æsken)
+        // Hent billeder for parent (ï¿½sken)
         $toy['images'] = $mediaModel->getImages('catalog_parent', $id);
 
         // Hent billeder for hver item (figurer/dele)

@@ -58,7 +58,7 @@ class ToyModel {
     // --- CHILD ITEMS CRUD ---
 
     public function getChildItems(int $parentId) {
-        // RETTET: Aliases ændret fra part_name/type til master_toy_item_name/type
+        // RETTET: Aliases ï¿½ndret fra part_name/type til master_toy_item_name/type
         return $this->db->query("
             SELECT cti.*, 
                    s.name as master_toy_item_name, 
@@ -92,6 +92,58 @@ class ToyModel {
         
         $data['item_id'] = $itemId;
         return $this->db->query($sql, $data);
+    }
+
+    public function saveItems(int $parentId, array $items) {
+        // 1. Hent eksisterende IDs
+        $existingIds = $this->db->query(
+            "SELECT id FROM collection_toy_items WHERE collection_toy_id = :pid", 
+            ['pid' => $parentId]
+        )->fetchAll(\PDO::FETCH_COLUMN);
+
+        $processedIds = [];
+
+        foreach ($items as $item) {
+            // Spring over hvis ingen master item er valgt
+            if (empty($item['master_toy_item_id'])) continue;
+
+            $itemId = isset($item['id']) ? (int)$item['id'] : 0;
+
+            // Forbered data array (fÃ¦lles for create/update)
+            $data = [
+                'mid'         => $item['master_toy_item_id'],
+                'cond'        => $item['condition'] ?: null, // Simpel null check
+                'loose'       => isset($item['is_loose']) ? 1 : 0,
+                'is_repo'     => $item['is_reproduction'] ?: null,
+                'comments'    => $item['user_comments'] ?: null,
+                'p_date'      => $item['purchase_date'] ?: null,
+                'p_price'     => $item['purchase_price'] ?: null,
+                'src_id'      => $item['source_id'] ?: null,
+                'acq_status'  => $item['acquisition_status'] ?: null,
+                'exp_date'    => $item['expected_arrival_date'] ?: null,
+                'pers_id'     => $item['personal_item_id'] ?: null,
+                'stor_id'     => $item['storage_id'] ?: null
+            ];
+
+            if ($itemId > 0 && in_array($itemId, $existingIds)) {
+                // UPDATE
+                $this->updateItem($itemId, $data);
+                $processedIds[] = $itemId;
+            } else {
+                // CREATE (Vi skal bruge parent ID her)
+                $data['pid'] = $parentId; 
+                $this->createItem($data);
+            }
+        }
+
+        // 3. DELETE (Slet dem der ikke var med i formen)
+        $idsToDelete = array_diff($existingIds, $processedIds);
+        if (!empty($idsToDelete)) {
+            // Brug deleteItem metoden sÃ¥ vi ogsÃ¥ fÃ¥r slettet billed-relationer!
+            foreach ($idsToDelete as $delId) {
+                $this->deleteItem($delId);
+            }
+        }
     }
 
     // --- DROPDOWNS & CATALOG DATA ---
@@ -192,14 +244,14 @@ class ToyModel {
             $mediaIds = $mediaModel->getMediaIdsForEntity('collection_child', $item['id']);
             
             foreach ($mediaIds as $mid) {
-                // A. Slet først relationen i map-tabellen (Vigtigt når du ikke bruger CASCADE!)
+                // A. Slet fï¿½rst relationen i map-tabellen (Vigtigt nï¿½r du ikke bruger CASCADE!)
                 $this->db->query("DELETE FROM collection_toy_item_media_map WHERE media_file_id = :mid", ['mid' => $mid]);
                 
-                // B. Slet selve filen og media_files rækken
+                // B. Slet selve filen og media_files rï¿½kken
                 $mediaModel->delete($mid);
             }
 
-            // C. Slet selve item-rækken i databasen (Dataen)
+            // C. Slet selve item-rï¿½kken i databasen (Dataen)
             $this->db->query("DELETE FROM collection_toy_items WHERE id = :id", ['id' => $item['id']]);
         }
 
@@ -213,7 +265,7 @@ class ToyModel {
             $mediaModel->delete($mid);
         }
 
-        // 3. SLET PARENT TOY DATA (Hoved-rækken)
+        // 3. SLET PARENT TOY DATA (Hoved-rï¿½kken)
         $this->db->query("DELETE FROM collection_toys WHERE id = :id", ['id' => $id]);
     }
 
@@ -288,6 +340,12 @@ class ToyModel {
 
         // --- FILTERS ---
 
+        // Filter til at hente Ã©t specifikt legetÃ¸j (til partial refresh)
+        if (!empty($filters['id'])) {
+            $where[] = "ct.id = :fid";
+            $params['fid'] = $filters['id'];
+        }
+
         // Master Data Filters
         if (!empty($filters['universe_id'])) {
             $where[] = "tl.universe_id = :uid";
@@ -316,7 +374,7 @@ class ToyModel {
             $params['acq'] = $filters['acquisition_status'];
         }
 
-        // Search (Søger i både navn, ID og box code)
+        // Search (Sï¿½ger i bï¿½de navn, ID og box code)
         if (!empty($filters['search'])) {
             $term = '%' . $filters['search'] . '%';
             $where[] = "(mt.name LIKE :s1 OR ct.personal_toy_id LIKE :s2 OR su.box_code LIKE :s3)";
@@ -333,13 +391,13 @@ class ToyModel {
         $countSql = "SELECT COUNT(*) FROM (" . $sql . ") as count_table";
         $total = $this->db->query($countSql, $params)->fetchColumn();
 
-        // --- SORTERING (Her kommer ændringen til Dashboard) ---
+        // --- SORTERING (Her kommer ï¿½ndringen til Dashboard) ---
         
         if (isset($filters['sort']) && $filters['sort'] === 'newest') {
-            // Dashboard: Vis nyeste tilføjelser først
+            // Dashboard: Vis nyeste tilfï¿½jelser fï¿½rst
             $sql .= " ORDER BY ct.id DESC";
         } else {
-            // Standard: Sorter alfabetisk efter legetøjsnavn
+            // Standard: Sorter alfabetisk efter legetï¿½jsnavn
             $sql .= " ORDER BY mt.name ASC";
         }
 
@@ -351,7 +409,7 @@ class ToyModel {
         // VIGTIGT: Returner i det format din Controller forventer (array vs raw data)
         // I den gamle metode returnerede du et array med ['data', 'total', ...].
         // Men din getRecentAdditions kaldte bare ->fetchAll() direkte.
-        // For at understøtte BEGGE dele, gør vi sådan her:
+        // For at understï¿½tte BEGGE dele, gï¿½r vi sï¿½dan her:
         
         // Hvis vi kun skal bruge raw data (f.eks. til dashboardet som ikke bruger pagineringsobjektet direkte endnu)
         if (isset($filters['raw_result']) && $filters['raw_result'] === true) {

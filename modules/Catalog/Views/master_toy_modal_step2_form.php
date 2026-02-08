@@ -3,7 +3,7 @@
 $jsonItems = json_encode($toy['items'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 $isEdit = !empty($toy['id']);
 
-// Forbered subjects med fuld data til JS søgning
+// Forbered subjects med fuld data til JS sï¿½gning
 $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 
@@ -42,7 +42,7 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                         <select class="form-select" id="master_toy_manufacturer_id" required>
                             <option value="">Select Manufacturer...</option>
                             <?php 
-                            // Tjek om vi skal auto-vælge (hvis der kun er 1 item i listen)
+                            // Tjek om vi skal auto-vï¿½lge (hvis der kun er 1 item i listen)
                             $autoSelectMan = count($manufacturers) === 1; 
                             
                             foreach($manufacturers as $m): 
@@ -60,7 +60,7 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
                         <select class="form-select" id="master_toy_toy_line_id" name="line_id" required>
                             <option value="">Select Manufacturer first...</option>
                             <?php 
-                            // Tjek om vi skal auto-vælge
+                            // Tjek om vi skal auto-vï¿½lge
                             $autoSelectLine = count($lines) === 1;
 
                             foreach($lines as $l): 
@@ -184,6 +184,7 @@ $jsonSubjects = json_encode($subjects ?? [], JSON_HEX_APOS | JSON_HEX_QUOT);
 
 <template id="itemRowTemplate">
     <div class="card mb-2 item-row border-0 shadow-sm" style="background-color: #fff; border: 1px solid #dee2e6;">
+        <input type="hidden" name="items[UID][id]" class="input-id" value="">
         <div class="card-body p-3 position-relative">
             <button type="button" class="btn-close position-absolute top-0 end-0 m-2 small remove-row" aria-label="Remove" onclick="MasterToyMgr.removeItem(this)" style="font-size: 0.7rem; z-index: 5;"></button>
             <div class="row g-2 align-items-end">
