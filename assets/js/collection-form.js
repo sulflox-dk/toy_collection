@@ -1,6 +1,6 @@
 /**
  * COLLECTION FORM
- * H�ndterer dropdowns, widget s�gning og tilf�jelse af parts
+ * Håndterer dropdowns, widget søgning og tilføjelse af parts
  */
 App.initDependentDropdowns = function () {
 	console.log('Initializing Toy Form logic...');
@@ -246,6 +246,7 @@ App.initDependentDropdowns = function () {
 		});
 
 		if (data) {
+			// RETTET: Brug det eksisterende input fra templaten i stedet for at lave et nyt
 			const existingIdInput = clone.querySelector('.item-db-id');
 			if (existingIdInput) {
 				existingIdInput.value = data.id;
@@ -279,8 +280,6 @@ App.initDependentDropdowns = function () {
 
 			clone.querySelector('.remove-row-btn').onclick = function (e) {
 				e.preventDefault();
-				// Vi fjerner bare rækken visuelt.
-				// Når formen gemmes, vil PHP opdage at ID'et mangler i listen og slette det i DB.
 				e.target.closest('.child-item-row').remove();
 				if (countBadge)
 					countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} item(s)`;
@@ -464,13 +463,12 @@ App.initDependentDropdowns = function () {
 		}
 	}
 
-	// Ajax Submit
+	// --- AJAX SUBMIT HANDLER ---
 	const form = document.getElementById('addToyForm');
 	if (form) {
 		form.addEventListener('submit', function (e) {
 			e.preventDefault();
 
-			// Validering: Mindst ét item
 			const container = document.getElementById('childItemsContainer');
 			if (
 				container &&
@@ -490,7 +488,6 @@ App.initDependentDropdowns = function () {
 			const submitBtn = form.querySelector('button[type="submit"]');
 			const originalBtnText = submitBtn.innerHTML;
 
-			// Vis loading state
 			submitBtn.innerHTML =
 				'<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
 			submitBtn.disabled = true;
@@ -498,50 +495,39 @@ App.initDependentDropdowns = function () {
 			fetch(form.action, { method: 'POST', body: formData })
 				.then((response) => {
 					const contentType = response.headers.get('content-type');
-
-					// JSON Svar (API success/fail)
-					// JSON Svar (API success/fail)
 					if (
 						contentType &&
 						contentType.indexOf('application/json') !== -1
 					) {
 						return response.json().then((data) => {
-							// ALTID nulstil knappen når vi får JSON svar
 							submitBtn.disabled = false;
 							submitBtn.innerHTML = originalBtnText;
 
 							if (data.success) {
-								// SUCCESS: Kald smart refresh logik
+								// VIGTIGT: Send form ID med ('addToyForm'), så vi kan finde dataene før modalen dør
 								if (
 									window.CollectionForm &&
 									typeof window.CollectionForm.handleSaveSuccess ===
 										'function'
 								) {
-									// RETTET: Send formens ID med!
 									window.CollectionForm.handleSaveSuccess(
 										data,
 										'addToyForm',
 									);
 								} else {
-									// Fallback
 									window.location.reload();
 								}
 							} else {
-								// FEJL FRA API
 								alert('Error: ' + data.error);
 							}
 						});
-					}
-					// HTML Svar (f.eks. ved valideringsfejl eller Create Wizard step 2)
-					else {
+					} else {
 						return response.text().then((html) => {
-							// Her nulstiller vi IKKE knappen med det samme, da vi skifter view
 							const modalContent = form.closest('.modal-content');
 							if (modalContent) {
 								modalContent.innerHTML = html;
-								if (typeof App.initMediaUploads === 'function') {
+								if (typeof App.initMediaUploads === 'function')
 									App.initMediaUploads();
-								}
 							}
 						});
 					}
@@ -549,7 +535,6 @@ App.initDependentDropdowns = function () {
 				.catch((err) => {
 					console.error('Save error:', err);
 					alert('Error saving.');
-					// Reset knap ved netværksfejl
 					submitBtn.innerHTML = originalBtnText;
 					submitBtn.disabled = false;
 				});
@@ -558,55 +543,62 @@ App.initDependentDropdowns = function () {
 };
 
 window.CollectionForm = {
-	// �bner modal til at oprette nyt leget�j
+	// Åbner modal til at oprette nyt legetøj
 	openAddModal: function () {
 		App.openModal('Collection', 'Toy', 'add');
 	},
 
-	// �bner modal til redigering af data
+	// Åbner modal til redigering af data
 	openEditModal: function (id) {
 		if (!id) return console.error('Missing ID for edit modal');
 		App.openModal('Collection', 'Toy', 'edit', { id: id });
 	},
 
-	// �bner modal til billeder (Step 3 / Media Step)
+	// Åbner modal til billeder (Step 3 / Media Step)
 	openMediaModal: function (id) {
 		if (!id) return console.error('Missing ID for media modal');
 		App.openModal('Collection', 'Toy', 'media_step', { id: id });
 	},
 
-	// Callback når noget gemmes
-	// Callback når noget gemmes
+	// --- AGGRESSIV LUKKE-FUNKTION ---
+	// Callback når noget gemmes. Modtager data og valgfrit formId
 	handleSaveSuccess: function (data, formId) {
-		// NYT: Tag formId med som argument
 		const modalEl = document.getElementById('appModal');
 
-		// Gem ID før vi lukker modalen (hvis vi har brug for det til refresh)
+		// 1. Gem ID til opdatering af kortet FØR vi lukker modalen
 		let refreshId = null;
-		if (formId) {
+		if (data && data.id) {
+			refreshId = data.id; // Brug ID fra server-svaret hvis muligt
+		} else if (formId) {
+			// Ellers prøv at fiske det fra formen
 			const form = document.getElementById(formId);
 			const idInput = form ? form.querySelector('input[name="id"]') : null;
 			refreshId = idInput ? idInput.value : null;
 		}
-		// Hvis API returnerer ID, brug det (bedre!)
-		if (data && data.id) {
-			refreshId = data.id;
-		}
 
+		// 2. LUK MODALEN (Med alle midler!)
 		if (modalEl) {
-			// METODE 1: Den pæne (Bootstrap instans)
+			// A. Prøv den pæne Bootstrap-måde
 			const modal = bootstrap.Modal.getInstance(modalEl);
 			if (modal) {
+				console.log('yessir');
 				modal.hide();
 			} else {
-				// METODE 2: Klik på krydset (Simuler bruger-klik)
+				console.log('wtf');
+				// B. Prøv at klikke på luk-knappen
 				const closeBtn = modalEl.querySelector(
 					'.btn-close, [data-bs-dismiss="modal"]',
 				);
 				if (closeBtn) {
+					console.log('I can boogie');
 					closeBtn.click();
-				} else {
-					// METODE 3: "Brute Force" (Tving den væk manuelt)
+				}
+			}
+
+			// C. RYD OP MANUELT (Hvis den stadig er åben efter et øjeblik eller som sikkerhedsnet)
+			// Vi fjerner klasserne og stylingen manuelt for at være sikre
+			setTimeout(() => {
+				if (modalEl.classList.contains('show')) {
 					console.warn('Forcing modal close manually');
 					modalEl.classList.remove('show');
 					modalEl.style.display = 'none';
@@ -615,33 +607,32 @@ window.CollectionForm = {
 					document.body.style.overflow = '';
 					document.body.style.paddingRight = '';
 
-					// Fjern den mørke baggrund
 					const backdrops = document.querySelectorAll('.modal-backdrop');
 					backdrops.forEach((bd) => bd.remove());
 				}
-			}
+			}, 100); // Kør efter 100ms
 		}
 
 		App.showToast('Saved successfully!');
 
-		// --- SMART REFRESH LOGIK ---
+		// 3. SMART REFRESH AF KORTET
 		const isCollectionList = !!document.getElementById(
 			'collectionGridContainer',
 		);
 
 		if (data && data.success && window.CollectionMgr && isCollectionList) {
+			// Hvis vi har et ID og kortet findes -> Opdater kun kortet
 			if (refreshId && document.querySelector(`[data-id="${refreshId}"]`)) {
-				// EDIT: Opdater kortet
 				CollectionMgr.refreshItem(refreshId);
 			} else {
-				// CREATE: Reload siden (eller grid)
+				// Ellers reload (f.eks. nyt item)
 				setTimeout(
 					() => CollectionMgr.loadPage(CollectionMgr.currentPage || 1),
 					300,
 				);
 			}
 		} else {
-			// Fallback: Reload
+			// Fallback: Reload hele siden
 			setTimeout(() => window.location.reload(), 300);
 		}
 	},

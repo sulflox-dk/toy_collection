@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	CollectionMgr.init();
 
 	// Hack til reload efter save (Hvis CollectionForm bruges)
-	if (window.CollectionForm) {
+	/*if (window.CollectionForm) {
 		window.CollectionForm.handleSaveSuccess = function (data) {
 			if (window.App && App.showToast) App.showToast('Saved successfully!');
 
@@ -285,5 +285,5 @@ document.addEventListener('DOMContentLoaded', () => {
 				window.location.reload();
 			}
 		};
-	}
+	}*/
 });
