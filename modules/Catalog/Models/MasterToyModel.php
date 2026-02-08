@@ -208,22 +208,64 @@ class MasterToyModel {
     }
 
     private function saveItems($masterToyId, $items) {
-        // Ryd op først (enkleste måde at håndtere opdateringer på)
-        $this->db->query("DELETE FROM master_toy_items WHERE master_toy_id = :id", ['id' => $masterToyId]);
+        // 1. Hent alle eksisterende IDs for dette Master Toy fra databasen
+        $existingIds = $this->db->query(
+            "SELECT id FROM master_toy_items WHERE master_toy_id = :id", 
+            ['id' => $masterToyId]
+        )->fetchAll(\PDO::FETCH_COLUMN);
 
-        if (empty($items)) return;
+        // Hvis formen er tom, slet alt (med forsigtighed, men nødvendigt)
+        if (empty($items)) {
+            if (!empty($existingIds)) {
+                $idsStr = implode(',', array_map('intval', $existingIds));
+                $this->db->query("DELETE FROM master_toy_items WHERE id IN ($idsStr)");
+            }
+            return;
+        }
 
-        // Indsæt nye
-        $sql = "INSERT INTO master_toy_items (master_toy_id, subject_id, variant_description, quantity) 
-                VALUES (:mtid, :sid, :var, :qty)";
-        
+        $processedIds = []; // Holder styr på hvilke IDs vi har håndteret (opdateret/oprettet)
+
+        // 2. Loop gennem de items der kommer fra formen
         foreach ($items as $item) {
-            $this->db->query($sql, [
-                'mtid' => $masterToyId,
-                'sid' => $item['subject_id'],
-                'var' => $item['variant_description'],
-                'qty' => $item['quantity']
-            ]);
+            $itemId = isset($item['id']) ? (int)$item['id'] : 0;
+
+            if ($itemId > 0 && in_array($itemId, $existingIds)) {
+                // SCENARIE A: ID findes i DB -> OPDATER (Bevarer relationer!)
+                $sql = "UPDATE master_toy_items 
+                        SET subject_id = :sid, 
+                            variant_description = :var, 
+                            quantity = :qty 
+                        WHERE id = :id";
+                
+                $this->db->query($sql, [
+                    'sid' => $item['subject_id'],
+                    'var' => $item['variant_description'],
+                    'qty' => $item['quantity'],
+                    'id'  => $itemId
+                ]);
+                
+                $processedIds[] = $itemId; // Husk at vi har gemt denne
+            } else {
+                // SCENARIE B: Nyt item (ingen ID eller ukendt ID) -> OPRET
+                $sql = "INSERT INTO master_toy_items (master_toy_id, subject_id, variant_description, quantity) 
+                        VALUES (:mtid, :sid, :var, :qty)";
+                
+                $this->db->query($sql, [
+                    'mtid' => $masterToyId,
+                    'sid'  => $item['subject_id'],
+                    'var'  => $item['variant_description'],
+                    'qty'  => $item['quantity']
+                ]);
+                // (Nye items har ingen relationer endnu, så det er fint)
+            }
+        }
+
+        // 3. SCENARIE C: Slet items der var i DB, men IKKE var med i formen (bruger har fjernet dem)
+        $idsToDelete = array_diff($existingIds, $processedIds);
+        
+        if (!empty($idsToDelete)) {
+            $idsStr = implode(',', array_map('intval', $idsToDelete));
+            $this->db->query("DELETE FROM master_toy_items WHERE id IN ($idsStr)");
         }
     }
 

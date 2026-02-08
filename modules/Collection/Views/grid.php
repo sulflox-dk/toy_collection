@@ -1,16 +1,4 @@
 <?php
-$getStatusColor = function($status) {
-    return match($status) {
-        'In Hand', 'Arrived' => 'success',
-        'Pre-order' => 'info',
-        'Shipped' => 'primary',
-        'Paid' => 'primary',
-        'Backordered' => 'warning',
-        'Customs' => 'warning',
-        'Cancelled' => 'danger',
-        default => 'secondary'
-    };
-};
 $mode = $view_mode ?? 'list';
 ?>
 
@@ -22,17 +10,30 @@ $mode = $view_mode ?? 'list';
                 <div class="card h-100 toy-card shadow-none" data-id="<?= $r['id'] ?>" style="border:0px solid rgb(222, 226, 230);">
                     <div class="position-relative bg-light border-bottom d-flex align-items-center justify-content-center p-0" style="height: 260px; border:1px solid rgb(222, 226, 230);">
                         <?php if(!empty($r['image_path'])): ?>
-                            <img src="<?= htmlspecialchars($r['image_path']) ?>" style="max-height: 100%; max-width: 100%; object-fit: contain;" loading="lazy">
+                            <img src="<?= htmlspecialchars($r['image_path']) ?>" 
+                                 style="max-height: 100%; max-width: 100%; object-fit: contain; <?= !empty($r['is_stock_image']) ? 'opacity: 0.6;' : '' ?>" 
+                                 loading="lazy">
+
+                            <?php if(!empty($r['is_stock_image'])): ?>
+                                <span class="position-absolute top-50 start-50 translate-middle badge bg-secondary rounded-pill text-uppercase" title="This is a catalog image" style="opacity:0.8; font-weight:500; font-size:1.2rem;">
+                                    Catalog Photo
+                                </span>
+                            <?php endif; ?>
+
                         <?php else: ?>
                             <div class="text-center text-muted opacity-25"><i class="fas fa-camera fa-4x mb-2"></i><br>No Image</div>
                         <?php endif; ?>
                         <?php if($r['acquisition_status'] != 'Arrived'): ?>
-                            <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-warning shadow-sm"><?= $r['acquisition_status'] ?></span>
+                            <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-secondary shadow-sm text-uppercase" style="font-size:0.6rem;"><?= $r['acquisition_status'] ?></span>
                         <?php endif; ?>
                     </div>
                     <div class="card-body d-flex flex-column" style="border:1px solid rgb(222, 226, 230); border-top-width:0px; border-bottom-width:0px;">
                         <div class="mb-2">
-                            <h6 class="card-title text-dark fw-bold text-truncate" title="<?= htmlspecialchars($r['toy_name']) ?>"><?= htmlspecialchars($r['toy_name']) ?></h6>
+                            <h6 class="card-title text-dark fw-bold lh-base" title="<?= htmlspecialchars($r['toy_name']) ?>"><?= htmlspecialchars($r['toy_name']) ?>&nbsp;<?php if(!empty($r['item_count']) && $r['item_count'] > 0): ?>
+                                        <span class="badge bg-light text-<?php if(!empty($r['missing_items_list'])): ?>warning<?php else: ?>dark<?php endif; ?> border" style="font-size:0.7rem;">
+                                            <?= $r['item_count'] ?> Parts
+                                        </span>
+                                    <?php endif; ?></h6>
                             <div class="small text-secondary">
                                 <?php 
                                     $meta = [];
@@ -51,27 +52,32 @@ $mode = $view_mode ?? 'list';
                             <?php endif; ?>
                             <div class="text-secondary small"><?= htmlspecialchars($r['manufacturer_name'] ?? '-') ?> &bull; <?= htmlspecialchars($r['line_name'] ?? '') ?></div>
                         </div>
-                        <div class="row border-top pt-2">
-                            <div class="col-6 small">
+                        <div class="border-top pt-2 pb-2 small">
                                 <div>Condition: <?= htmlspecialchars($r['condition'] ?? '-') ?></div>
                                 <div>
                                 <?php if(!empty($r['box_code'])): ?>
-                                    <span class="small">Storage: <?= htmlspecialchars($r['box_code']) ?></span>
+                                    <span>Storage: <?= htmlspecialchars($r['box_code']) ?></span>
                                 <?php else: ?>
-                                    <span class="small">Storage: ?</span>
+                                    <span>Storage: ?</span>
                                 <?php endif; ?>
-                                <span class="small"> &bull; </span>
+                                <span> &bull; </span>
                                 <?php if(!empty($r['personal_toy_id'])): ?>
-                                    <span class="small">
+                                    <span>
                                         ID: <?= htmlspecialchars($r['personal_toy_id']) ?>
                                     </span>
                                 <?php else: ?>
-                                    <span class="small">ID: ?</span>
+                                    <span>ID: ?</span>
                                 <?php endif; ?>
                                 </div>
-                            </div>
-                            <div class="col-6 text-end"><?php if(!empty($r['item_count']) && $r['item_count'] > 0): ?><span class="badge bg-light text-dark border"><?= $r['item_count'] ?> Parts</span><?php endif; ?></div>                                                       
                         </div>
+                        <div class="border-top pt-2 small">
+                                Missing Parts: 
+                                    <?php if(!empty($r['missing_items_list'])): ?>
+                                    <?= htmlspecialchars($r['missing_items_list']) ?>
+                                    <?php else: ?>
+                                    <i>None</i>
+                                    <?php endif; ?>
+                                </div>
                     </div>
                     <div class="card-footer bg-white border-top-0 p-2" style="border:1px solid rgb(222, 226, 230); border-top-width:0px;">
                         <div class="btn-group w-100 shadow-sm">

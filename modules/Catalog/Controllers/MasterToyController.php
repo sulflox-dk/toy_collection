@@ -41,6 +41,8 @@ class MasterToyController extends Controller {
         $lines = $this->lineModel->getAllSimple();
         $sources = $this->sourceModel->getAllSimple(); 
         $initialData = $this->model->getFiltered([], 1, 20);
+
+        $viewMode = $_COOKIE['catalog_view_mode'] ?? 'list';
         
         $this->view->render('master_toy_index', [
             'title' => 'Catalog: Master Toys',
@@ -48,6 +50,7 @@ class MasterToyController extends Controller {
             'lines' => $lines,
             'sources' => $sources,
             'initialData' => $initialData,
+            'view_mode' => $viewMode,
             'scripts' => [
                 'assets/js/collection-media.js', 
                 'assets/js/master_toy_manager.js'
@@ -66,6 +69,7 @@ class MasterToyController extends Controller {
         ];
 
         $data = $this->model->getFiltered($filters, $page, 20);
+        $data['view_mode'] = $_COOKIE['catalog_view_mode'] ?? 'list';
         $this->view->renderPartial('master_toy_grid', $data, 'Catalog');
     }
 

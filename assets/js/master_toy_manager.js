@@ -1,9 +1,18 @@
 const MasterToyMgr = {
-    // Cache til subjects data
+    // Variabler
+    currentPage: 1,
+    baseUrl: '/',
+    container: null,
+    
+    // Cache til subjects data (bruges i modal og multi-add)
     allSubjects: [],
 
     init: function() {
-        this.baseUrl = App.baseUrl;
+        console.log("MasterToyMgr Init started");
+        
+        // Sikker Base URL
+        this.baseUrl = (typeof App !== 'undefined' && App.baseUrl) ? App.baseUrl : '/';
+        
         this.container = document.getElementById('masterToyGridContainer');
         this.search = document.getElementById('searchName');
         
@@ -11,15 +20,13 @@ const MasterToyMgr = {
         this.filterLine = document.getElementById('filterLine');
         this.filterSource = document.getElementById('filterSource');
 
-        // Filters
-        if(this.filterUni) {
-            const filters = [this.filterUni, this.filterLine, this.filterSource];
-            filters.forEach(f => {
-                if(f) f.addEventListener('change', () => this.loadPage(1));
-            });
-        }
+        // 1. FILTERS (hvis de findes)
+        const filters = [this.filterUni, this.filterLine, this.filterSource];
+        filters.forEach(f => {
+            if(f) f.addEventListener('change', () => this.loadPage(1));
+        });
 
-        // Search Delay
+        // 2. SEARCH DELAY
         let timeout;
         if(this.search) {
             this.search.addEventListener('keyup', () => {
@@ -28,9 +35,48 @@ const MasterToyMgr = {
             });
         }
 
-        this.attachGridListeners();
+        // 3. SET VIEW BUTTON STATE (Læs fra cookie)
+        const match = document.cookie.match(new RegExp('(^| )catalog_view_mode=([^;]+)'));
+        const currentMode = match ? match[2] : 'list';
+        this.updateViewButtons(currentMode);
 
-        // --- MUTATION OBSERVER ---
+        // 4. GLOBAL CLICK LISTENER (Robust løsning)
+        document.body.addEventListener('click', (e) => {
+            
+            // Hjælper til at finde ID fra både table row og card
+            const findId = (el) => {
+                const container = el.closest('[data-id]') || el.closest('tr');
+                return container ? container.dataset.id : null;
+            };
+
+            // --- EDIT KNAP ---
+            const editBtn = e.target.closest('.btn-edit');
+            if (editBtn) {
+                e.preventDefault();
+                const id = findId(editBtn);
+                if (id) this.openEditModal(id);
+                return;
+            }
+
+            // --- MEDIA KNAP ---
+            const mediaBtn = e.target.closest('.btn-media');
+            if (mediaBtn) {
+                e.preventDefault();
+                const id = findId(mediaBtn);
+                if (id) this.openMedia(id);
+                return;
+            }
+
+            // --- DELETE KNAP ---
+            const delBtn = e.target.closest('.btn-delete');
+            if (delBtn) {
+                e.preventDefault();
+                this.handleDelete(delBtn);
+                return;
+            }
+        });
+
+        // 5. MUTATION OBSERVER (Til Modal Form Initialisering)
         const modalEl = document.getElementById('appModal');
         if(modalEl) {
             const observer = new MutationObserver(() => {
@@ -43,9 +89,45 @@ const MasterToyMgr = {
             });
             observer.observe(modalEl, { childList: true, subtree: true });
         }
+        
+        // Initialiser current page (hvis container findes)
+        if(this.container) {
+            this.currentPage = 1;
+        }
     },
 
+    // --- VIEW SWITCHING ---
+    switchView: function(mode) {
+        document.cookie = "catalog_view_mode=" + mode + "; path=/; max-age=31536000";
+        this.updateViewButtons(mode);
+        
+        // Genindlæs listen hvis vi er på index-siden
+        if (this.container) {
+            this.loadPage(this.currentPage || 1);
+        } else {
+            window.location.reload();
+        }
+    },
+
+    updateViewButtons: function(mode) {
+        const btnList = document.getElementById('btn-view-list');
+        const btnCards = document.getElementById('btn-view-cards');
+        
+        if(btnList && btnCards) {
+            if(mode === 'list') {
+                btnList.classList.add('active', 'bg-secondary', 'text-white');
+                btnCards.classList.remove('active', 'bg-secondary', 'text-white');
+            } else {
+                btnCards.classList.add('active', 'bg-secondary', 'text-white');
+                btnList.classList.remove('active', 'bg-secondary', 'text-white');
+            }
+        }
+    },
+
+    // --- GRID LOADING ---
     loadPage: function(page) {
+        this.currentPage = page;
+        
         const params = new URLSearchParams({
             module: 'Catalog', 
             controller: 'MasterToy', 
@@ -58,42 +140,22 @@ const MasterToyMgr = {
             search: this.search ? this.search.value : ''
         });
 
-        this.container.style.opacity = '0.5';
-        fetch(`${this.baseUrl}?${params.toString()}`)
-            .then(res => res.text())
-            .then(html => {
-                this.container.innerHTML = html;
-                this.container.style.opacity = '1';
-                this.attachGridListeners(); 
-            });
+        if(this.container) {
+            this.container.style.opacity = '0.5';
+            fetch(`${this.baseUrl}?${params.toString()}`)
+                .then(res => res.text())
+                .then(html => {
+                    this.container.innerHTML = html;
+                    this.container.style.opacity = '1';
+                })
+                .catch(err => {
+                    console.error("Load Error:", err);
+                    this.container.style.opacity = '1';
+                });
+        }
     },
 
-    attachGridListeners: function() {
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const id = this.closest('tr').dataset.id;
-                if(confirm('Delete this Master Toy? This cannot be undone.')) {
-                    MasterToyMgr.executeDelete(id);
-                }
-            });
-        });
-
-        document.querySelectorAll('.btn-edit').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const id = this.closest('tr').dataset.id;
-                MasterToyMgr.openEdit(id);
-            });
-        });
-
-        // MEDIA MANAGER KNAP (Opdateret)
-        document.querySelectorAll('.btn-media').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const id = this.closest('tr').dataset.id;
-                MasterToyMgr.openMedia(id);
-            });
-        });
-    },
-
+    // --- ACTIONS ---
     openUniverseSelect: function() {
         App.openModal('Catalog', 'MasterToy', 'modal_step1');
     },
@@ -102,11 +164,11 @@ const MasterToyMgr = {
         App.openModal('Catalog', 'MasterToy', 'modal_step2', { universe_id: universeId });
     },
 
-    openEdit: function(id) {
+    openEditModal: function(id) {
         App.openModal('Catalog', 'MasterToy', 'modal_step2', { id: id });
     },
 
-    // --- NY FUNKTION: Åbner Media Modal ---
+    // Åbner Media Modal
     openMedia: function(id, mode = 'edit') {
         const modalEl = document.getElementById('appModal');
         const modalBody = modalEl.querySelector('.modal-content');
@@ -123,8 +185,7 @@ const MasterToyMgr = {
             .then(html => {
                 modalBody.innerHTML = html;
                 
-                // Initialiser Media Uploader scriptet
-                // (Dette script ligger i assets/js/collection-media.js)
+                // Initialiser Media Uploader scriptet hvis det findes
                 if(App.initMediaUploads) {
                     App.initMediaUploads();
                 } else {
@@ -133,8 +194,38 @@ const MasterToyMgr = {
             });
     },
 
-    // --- FORM LOGIC ---
-    
+    handleDelete: function(btn) {
+        if(!confirm('Delete this Master Toy? This cannot be undone.')) return;
+        
+        const container = btn.closest('[data-id]') || btn.closest('tr');
+        const id = container ? container.dataset.id : null;
+
+        if(!id) return;
+
+        // Visuel feedback
+        container.style.opacity = '0.3';
+
+        const formData = new FormData();
+        formData.append('id', id);
+        
+        fetch(`${this.baseUrl}?module=Catalog&controller=MasterToy&action=delete`, { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                if(window.App) App.showToast('Toy deleted successfully!');
+                this.loadPage(this.currentPage);
+            } else {
+                container.style.opacity = '1';
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(err => {
+            container.style.opacity = '1';
+            console.error(err);
+        });
+    },
+
+    // --- FORM LOGIC (Trin 2) ---
     initForm: function() {
         console.log('Initializing Master Toy Form...');
         
@@ -205,7 +296,6 @@ const MasterToyMgr = {
                         });
                         lineSelect.innerHTML = html;
 
-                        // Auto-select hvis kun 1 mulighed
                         if (data.length === 1) {
                             lineSelect.value = data[0].id;
                         }
@@ -216,6 +306,63 @@ const MasterToyMgr = {
         });
     },
 
+    submitForm: function() {
+        const form = document.getElementById('masterToyForm');
+        if(!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const id = formData.get('id');
+        const action = id ? 'update' : 'create';
+
+        const btn = form.querySelector('button[onclick*="submitForm"]');
+        let originalText = '';
+        if(btn) {
+            originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+            btn.disabled = true;
+        }
+
+        fetch(`${this.baseUrl}?module=Catalog&controller=MasterToy&action=${action}`, {
+            method: 'POST', body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                const modalEl = document.getElementById('appModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if(modal) modal.hide();
+
+                App.showToast(id ? 'Toy updated successfully!' : 'Toy created successfully!');
+                this.loadPage(1);
+
+                if(!id) {
+                    // Hvis NY: Hop til media
+                    setTimeout(() => {
+                        MasterToyMgr.openMedia(data.id, 'create');
+                    }, 500);
+                }
+            } else {
+                alert(data.error);
+                if(btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('An error occurred.');
+            if(btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    },
+
+    // --- ITEM ROW / MULTI ADD LOGIC ---
     addItem: function() {
         this.renderRow({ quantity: 1 });
         this.updateUI();
@@ -240,11 +387,19 @@ const MasterToyMgr = {
         
         const uid = Date.now() + Math.floor(Math.random() * 1000);
 
+        // VIGTIGT: Gem ID'et hvis det findes, så PHP kan opdatere i stedet for at slette
+        if (item.id) {
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = `items[${uid}][id]`;
+            idInput.value = item.id;
+            row.appendChild(idInput);
+        }
+
         row.querySelectorAll('[name*="UID"]').forEach(el => {
             el.name = el.name.replace('UID', uid);
         });
 
-        // Understøtter både nyt og gammelt feltnavn
         const variantText = item.variant_description || '';
         row.querySelector('.input-variant').value = variantText;
         
@@ -259,7 +414,6 @@ const MasterToyMgr = {
             if(subject) {
                 this.updateSubjectDisplay(displayCard, subject);
             } else if (item.subject_name) {
-                // Fallback hvis vi har data fra item, men ikke hele listen
                 this.updateSubjectDisplay(displayCard, {
                     name: item.subject_name,
                     type: item.subject_type || 'Item',
@@ -280,6 +434,7 @@ const MasterToyMgr = {
         }
     },
 
+    // --- SEARCH / DROPDOWN LOGIC FOR ITEMS ---
     toggleSearch: function(cardEl) {
         const wrapper = cardEl.closest('.subject-selector-wrapper');
         const dropdown = wrapper.querySelector('.subject-search-dropdown');
@@ -377,80 +532,7 @@ const MasterToyMgr = {
         else iconEl.className = 'fas fa-cube subject-icon';
     },
 
-    submitForm: function() {
-        const form = document.getElementById('masterToyForm');
-        if(!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const formData = new FormData(form);
-        const id = formData.get('id');
-        // Brug 'create' hvis ingen ID (ny), 'update' hvis ID findes
-        const action = id ? 'update' : 'create';
-
-        const btn = form.querySelector('button[onclick*="submitForm"]');
-        let originalText = '';
-        if(btn) {
-            originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
-            btn.disabled = true;
-        }
-
-        fetch(`${this.baseUrl}?module=Catalog&controller=MasterToy&action=${action}`, {
-            method: 'POST', body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) {
-                const modalEl = document.getElementById('appModal');
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                if(modal) modal.hide();
-
-                App.showToast(id ? 'Toy updated successfully!' : 'Toy created successfully!');
-                this.loadPage(1);
-
-                if(!id) {
-                    // FLOW ÆNDRING: Hvis det er NY oprettelse
-                    // Hop direkte til Media Manager uden at spørge (ligesom Collection flow)
-                    setTimeout(() => {
-                        MasterToyMgr.openMedia(data.id, 'create');
-                    }, 500);
-                }
-            } else {
-                alert(data.error);
-                if(btn) {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('An error occurred.');
-            if(btn) {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        });
-    },
-
-    executeDelete: function(id) {
-        const formData = new FormData();
-        formData.append('id', id);
-        
-        fetch(`${this.baseUrl}?module=Catalog&controller=MasterToy&action=delete`, { method: 'POST', body: formData })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) {
-                App.showToast('Toy deleted successfully!');
-                this.loadPage(1);
-            } else {
-                alert(data.error);
-            }
-        });
-    },
-
+    // --- MULTI ADD MODAL ---
     openMultiAdd: function() {
         const overlay = document.getElementById('multiAddOverlay');
         const input = document.getElementById('multiAddSearch');
@@ -461,8 +543,6 @@ const MasterToyMgr = {
         overlay.classList.remove('d-none');
         input.value = '';
         input.focus();
-        
-        // Nulstil liste
         list.innerHTML = '<div class="text-center text-muted mt-5">Type to search for subjects...</div>';
         this.updateMultiCount();
     },
@@ -484,7 +564,7 @@ const MasterToyMgr = {
         const matches = this.allSubjects.filter(s => {
             return s.name.toLowerCase().includes(term) || 
                    (s.type && s.type.toLowerCase().includes(term));
-        }).slice(0, 100); // Begræns til 100 resultater for performance
+        }).slice(0, 100);
 
         if (matches.length === 0) {
             list.innerHTML = '<div class="text-center text-muted mt-3">No matches found.</div>';
@@ -497,7 +577,6 @@ const MasterToyMgr = {
             if(s.type) metaParts.push(s.type);
             if(s.faction) metaParts.push(s.faction);
             
-            // Ikon baseret på type
             let iconClass = 'fas fa-cube';
             if(s.type === 'Character') iconClass = 'fas fa-user';
             else if(s.type === 'Packaging') iconClass = 'fas fa-box-open';
@@ -539,26 +618,25 @@ const MasterToyMgr = {
             const subject = this.allSubjects.find(s => s.id === subjectId);
             
             if (subject) {
-                // Tilføj række
                 this.renderRow({
                     subject_id: subject.id,
                     subject_name: subject.name,
                     subject_type: subject.type,
                     quantity: 1,
-                    variant_description: '' // Man kan udfylde dette bagefter
+                    variant_description: ''
                 });
             }
         });
 
         this.updateUI();
         this.closeMultiAdd();
-        
-        // Scroll til bunden
         const container = document.getElementById('itemsContainer');
         if(container) setTimeout(() => container.scrollTop = container.scrollHeight, 100);
         
         App.showToast(checkboxes.length + ' items added!');
-    },
+    }
 };
 
-document.addEventListener('DOMContentLoaded', () => MasterToyMgr.init());
+document.addEventListener('DOMContentLoaded', () => {
+    MasterToyMgr.init();
+});

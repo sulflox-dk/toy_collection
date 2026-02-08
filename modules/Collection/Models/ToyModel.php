@@ -245,8 +245,28 @@ class ToyModel {
                        su.box_code,
                        su.name as storage_name,
                        ps.name as purchase_source_name,
-                       mf.file_path as image_path,
+                       
+                       -- Billede logik (Fallback til master)
+                       COALESCE(mf.file_path, mf_master.file_path) as image_path,
+                       (CASE WHEN mf.file_path IS NULL AND mf_master.file_path IS NOT NULL THEN 1 ELSE 0 END) as is_stock_image,
+
                        (SELECT COUNT(*) FROM collection_toy_items WHERE collection_toy_id = ct.id) as item_count,
+                       
+                       -- MISSING ITEMS LOGIK (RETTET)
+                       (
+                           SELECT GROUP_CONCAT(s_missing.name SEPARATOR ', ')
+                           FROM master_toy_items mti
+                           JOIN subjects s_missing ON mti.subject_id = s_missing.id
+                           -- Vi tjekker om du ejer denne specifikke 'master_toy_item'
+                           LEFT JOIN collection_toy_items cti_check 
+                                  ON cti_check.collection_toy_id = ct.id 
+                                  AND cti_check.master_toy_item_id = mti.id  -- <--- RETTET HER: Bruger master_toy_item_id
+                           WHERE mti.master_toy_id = ct.master_toy_id
+                             AND cti_check.id IS NULL -- Vi vil kun have dem, brugeren IKKE har
+                             -- Blacklist / Filter typer:
+                             AND s_missing.type NOT IN ('Packaging', 'Paperwork')
+                       ) as missing_items_list,
+
                        es.name as source_name,
                        es.type as source_type,
                        es.release_year as source_year
@@ -259,9 +279,12 @@ class ToyModel {
                 LEFT JOIN storage_units su ON ct.storage_id = su.id
                 LEFT JOIN sources ps ON ct.source_id = ps.id
                 
-                -- Hent KUN Collection Image (ikke master image)
+                -- Billed joins
                 LEFT JOIN collection_toy_media_map ctmm ON ct.id = ctmm.collection_toy_id AND ctmm.is_main = 1
-                LEFT JOIN media_files mf ON ctmm.media_file_id = mf.id";
+                LEFT JOIN media_files mf ON ctmm.media_file_id = mf.id
+                
+                LEFT JOIN master_toy_media_map mtmm ON ct.master_toy_id = mtmm.master_toy_id AND mtmm.is_main = 1
+                LEFT JOIN media_files mf_master ON mtmm.media_file_id = mf_master.id";
 
         // --- FILTERS ---
 
