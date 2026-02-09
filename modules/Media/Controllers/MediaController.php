@@ -17,7 +17,7 @@ class MediaController extends Controller {
     public function upload() {
         header('Content-Type: application/json');
 
-        // 1. Validering af filen (Controller logik)
+        // 1. Validering af filen
         if (!isset($_FILES['file'])) {
              echo json_encode(['success' => false, 'error' => 'No file sent to server']);
              exit;
@@ -36,13 +36,15 @@ class MediaController extends Controller {
             exit;
         }
 
-        // 2. Fil-håndtering (Flyt filen på disken)
-        $uploadPath = Config::get('upload_path', 'assets/uploads/');
-        $baseUrl    = Config::get('base_url');
-        $uploadDir  = Config::get('upload_dir', 'assets/uploads/');
+        // 2. Fil-håndtering (Brug konstanter!)
+        
+        // Brug den fysiske sti fra constants.php
+        // Vi tilføjer en slash til sidst for en sikkerheds skyld
+        $targetDir = rtrim(UPLOAD_PATH, '/') . '/'; 
 
-        if (!is_dir($uploadPath)) {
-            if (!mkdir($uploadPath, 0777, true)) {
+        // Opret mappe hvis den mangler
+        if (!is_dir($targetDir)) {
+            if (!mkdir($targetDir, 0777, true)) {
                 echo json_encode(['success' => false, 'error' => 'Failed to create upload directory']);
                 exit;
             }
@@ -50,26 +52,39 @@ class MediaController extends Controller {
 
         $ext = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
         $newFilename = uniqid('img_') . '.' . $ext;
-        $destination = $uploadPath . $newFilename;
-        $publicUrl   = $baseUrl . $uploadDir . $newFilename;
+        
+        // Fuld fysisk sti til filen (C:/.../assets/uploads/img_123.jpg)
+        $destination = $targetDir . $newFilename;
+        
+        // URL til filen (Bruges i browseren og gemmes i DB)
+        // Vi gemmer den relative sti (/assets/uploads/img_123.jpg)
+        // Det gør det nemmere at flytte sitet til et andet domæne senere.
+        // Hvis du absolut vil have fuld URL: Config::get('base_url') . UPLOADS_URI . '/' . $newFilename;
+        $publicUrl = UPLOADS_URI . '/' . $newFilename;
 
         if (move_uploaded_file($_FILES['file']['tmp_name'], $destination)) {
             
-            // 3. Database logik (Nu via Model)
-            $mediaId = $this->mediaModel->create($publicUrl, 'Image');
+            // 3. Database logik
+            try {
+                $mediaId = $this->mediaModel->create($publicUrl, 'Image');
 
-            // Link til den rigtige kontekst
-            if ($targetContext === 'collection_parent') {
-                $this->mediaModel->linkToParent($mediaId, $targetId);
-            } elseif ($targetContext === 'collection_child') {
-                $this->mediaModel->linkToChild($mediaId, $targetId);
-            } elseif ($targetContext === 'catalog_parent') {
-                $this->mediaModel->linkToMasterParent($mediaId, $targetId);
-            } elseif ($targetContext === 'catalog_child') {
-                $this->mediaModel->linkToMasterChild($mediaId, $targetId);
+                // Link til den rigtige kontekst
+                if ($targetContext === 'collection_parent') {
+                    $this->mediaModel->linkToParent($mediaId, $targetId);
+                } elseif ($targetContext === 'collection_child') {
+                    $this->mediaModel->linkToChild($mediaId, $targetId);
+                } elseif ($targetContext === 'catalog_parent') {
+                    $this->mediaModel->linkToMasterParent($mediaId, $targetId);
+                } elseif ($targetContext === 'catalog_child') {
+                    $this->mediaModel->linkToMasterChild($mediaId, $targetId);
+                }
+
+                echo json_encode(['success' => true, 'file_path' => $publicUrl, 'media_id' => $mediaId]);
+            } catch (\Exception $e) {
+                // Hvis DB fejler, slet filen igen for at undgå 'ghost files'
+                if (file_exists($destination)) unlink($destination);
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
             }
-
-            echo json_encode(['success' => true, 'file_path' => $publicUrl, 'media_id' => $mediaId]);
         } else {
             echo json_encode(['success' => false, 'error' => 'Could not move file']);
         }

@@ -1,6 +1,9 @@
 # --- SIKKERHED ---
 # Ignorer konfigurationsfilen med dine database-kodeord!
 config/config.php
+config/app.php
+config/database.php
+config/constants.php
 
 # --- FILER & MAPPER ---
 # Ignorer uploadede billeder (de fylder for meget og hører til lokalt)
