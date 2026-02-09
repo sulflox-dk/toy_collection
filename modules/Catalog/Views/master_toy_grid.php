@@ -58,10 +58,16 @@ $mode = $view_mode ?? 'list';
 
                     <div class="card-footer bg-white p-2" style="border:1px solid #dee2e6; border-top:0;">
                         <div class="btn-group w-100 shadow-sm">
-                            <button type="button" class="btn btn-outline-secondary btn-sm btn-edit" title="Edit">
+                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                    title="Quick Add to Collection (All Items)" 
+                                    onclick="MasterToyMgr.quickAdd(<?= $r['id'] ?>)">
+                                <i class="fas fa-folder-plus"></i>
+                            </button>
+                            
+                            <button type="button" class="btn btn-outline-secondary btn-sm btn-edit" title="Edit Data">
                                 <i class="fas fa-pencil-alt"></i>
                             </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm btn-media" title="Photos">
+                            <button type="button" class="btn btn-outline-secondary btn-sm btn-media" title="Manage Photos">
                                 <i class="fas fa-camera"></i>
                             </button>
                             <button type="button" class="btn btn-outline-danger btn-sm btn-delete" title="Delete">

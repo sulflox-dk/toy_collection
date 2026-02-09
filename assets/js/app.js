@@ -12,25 +12,25 @@ const App = {
 		let modal = bootstrap.Modal.getInstance(modalEl);
 
 		if (!modal) {
-			// Hvis den ikke findes endnu, opret den
+			// Hvis den ikke findes endnu, opret den og vis
 			modal = new bootstrap.Modal(modalEl);
 			modal.show();
 		} else {
 			// Hvis den findes, men er lukket, s√• vis den.
-			// Hvis den allerede ER √•ben (fordi vi skifter trin), s√• g√∏r vi ingenting her (ingen ekstra backdrop)
+			// Hvis den allerede ER √•ben (fordi vi skifter trin), g√∏r vi ingenting (ingen ekstra backdrop)
 			if (!modalEl.classList.contains('show')) {
 				modal.show();
 			}
 		}
 
 		// 2. Vis loader mens vi henter det nye indhold
-		// Vi overskriver kun indholdet, vi lukker/√•bner ikke selve modal-vinduet
 		modalEl.querySelector('.modal-content').innerHTML = `
-            <div class="modal-header border-0">
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-0 bg-dark text-white">
+                <h5 class="modal-title">Loading...</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-5">
-                <div class="spinner-border text-secondary" role="status"></div>
+                <div class="spinner-border text-primary" role="status"></div>
             </div>
         `;
 
@@ -44,27 +44,45 @@ const App = {
 		fetch(url)
 			.then((res) => res.text())
 			.then((html) => {
-                modalEl.querySelector('.modal-content').innerHTML = html;
+				modalEl.querySelector('.modal-content').innerHTML = html;
 
-                // RETTET: Tjek ogsÂ for 'add' og 'edit' handlingerne
-                if (
-                    (action === 'form' || action === 'add' || action === 'edit') &&
-                    typeof this.initDependentDropdowns === 'function'
-                ) {
-                    this.initDependentDropdowns();
-                }
-                
-                // Tilf¯j evt. ogsÂ dette, hvis du vil vÊre sikker pÂ Media uploads virker i 'media_step'
-                if (
-                    action === 'media_step' && 
-                    typeof this.initMediaUploads === 'function'
-                ) {
-                    this.initMediaUploads();
-                }
-            })
+				// --- VIGTIGT: Initialiser logik EFTER indholdet er sat ind ---
+
+				// K√∏r Collection Form logik (dropdowns, widget, auto-add)
+				// Vi tjekker nu bredere for handlinger, da 'form' er den nye standard for oprettelse
+				if (
+					(action === 'form' || action === 'add' || action === 'edit') &&
+					typeof this.initDependentDropdowns === 'function'
+				) {
+					console.log(
+						'App.openModal: Initializing Collection Form logic...',
+					);
+					this.initDependentDropdowns();
+				}
+
+				// K√∏r Media Upload logik
+				if (
+					action === 'media_step' &&
+					typeof this.initMediaUploads === 'function'
+				) {
+					console.log('App.openModal: Initializing Media Upload logic...');
+					this.initMediaUploads();
+				}
+
+				// K√∏r andre specifikke initialisere her hvis n√∏dvendigt...
+				// F.eks. Master Toy modal logik hvis den har sin egen init funktion
+			})
 			.catch((err) => {
-				modalEl.querySelector('.modal-body').innerHTML =
-					`<div class="alert alert-danger">Error: ${err}</div>`;
+				console.error('Modal Load Error:', err);
+				modalEl.querySelector('.modal-content').innerHTML = `
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Error</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger m-0">Failed to load content: ${err}</div>
+                    </div>
+                `;
 			});
 	},
 };
@@ -72,19 +90,19 @@ const App = {
 /**
  * GLOBAL TOAST HELPER
  */
-App.showToast = function(message, type = 'success') {
-    const toastEl = document.getElementById('liveToast');
-    const toastBody = document.getElementById('toastBody');
-    
-    if (!toastEl || !toastBody) return;
+App.showToast = function (message, type = 'success') {
+	const toastEl = document.getElementById('liveToast');
+	const toastBody = document.getElementById('toastBody');
 
-    // SÊt tekst
-    toastBody.textContent = message;
-    
-    // HÂndter farver (hvis du vil have error toasts senere)
-    toastEl.className = `toast align-items-center text-white border-0 bg-${type}`;
+	if (!toastEl || !toastBody) return;
 
-    // Vis med Bootstrap
-    const toast = new bootstrap.Toast(toastEl);
-    toast.show();
+	// SÔøΩt tekst
+	toastBody.textContent = message;
+
+	// HÔøΩndter farver (hvis du vil have error toasts senere)
+	toastEl.className = `toast align-items-center text-white border-0 bg-${type}`;
+
+	// Vis med Bootstrap
+	const toast = new bootstrap.Toast(toastEl);
+	toast.show();
 };

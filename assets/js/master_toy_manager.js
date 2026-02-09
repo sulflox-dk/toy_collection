@@ -784,6 +784,20 @@ const MasterToyMgr = {
 
 		App.showToast(checkboxes.length + ' items added!');
 	},
+
+	// ... inde i MasterToyMgr objektet ...
+
+	quickAdd: function (id) {
+		// Vi åbner Collection -> Toy -> form (Create modalen)
+		// Vi sender master_toy_id med, så controlleren ved hvad vi vil
+		// Vi sender auto_fill=1 med, så JS ved at den skal tilføje alle items
+		App.openModal('Collection', 'Toy', 'form', {
+			master_toy_id: id,
+			auto_fill: 1,
+		});
+	},
+
+	// ...
 };
 
 document.addEventListener('DOMContentLoaded', () => {

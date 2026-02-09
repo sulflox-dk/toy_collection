@@ -2,7 +2,7 @@
 namespace CollectionApp\Modules\Collection\Controllers;
 
 use CollectionApp\Kernel\Controller;
-use CollectionApp\Kernel\Database; // NY: For at kunne hente Enums
+use CollectionApp\Kernel\Database;
 use CollectionApp\Modules\Collection\Models\ToyModel;
 use CollectionApp\Modules\Catalog\Models\CatalogModel;
 use CollectionApp\Modules\Media\Models\MediaModel;
@@ -11,7 +11,8 @@ use CollectionApp\Modules\Universe\Models\UniverseModel;
 use CollectionApp\Modules\Universe\Models\EntertainmentSourceModel;
 use CollectionApp\Modules\Collection\Models\StorageModel;
 use CollectionApp\Modules\Catalog\Models\ManufacturerModel;
-use CollectionApp\Modules\Catalog\Models\ProductTypeModel; // <--- NY
+use CollectionApp\Modules\Catalog\Models\ProductTypeModel;
+use CollectionApp\Modules\Catalog\Models\MasterToyModel;
 
 class ToyController extends Controller {
 
@@ -27,26 +28,63 @@ class ToyController extends Controller {
     }
 
     public function add() {
-        // Henter universer fra CatalogModel
         $data = ['universes' => $this->catalogModel->getAllUniverses()];
         $this->view->renderPartial('select_universe_modal', $data, 'Collection');
     }
 
     public function form() {
         $preSelectedUniverseId = isset($_GET['universe_id']) ? (int)$_GET['universe_id'] : null;
-        $db = Database::getInstance(); // Hent DB instans til enums
+        $preMasterToyId = isset($_GET['master_toy_id']) ? (int)$_GET['master_toy_id'] : null;
+        $autoFill = isset($_GET['auto_fill']) ? true : false;
+
+        $db = Database::getInstance();
+        $mtModel = new MasterToyModel();
+
+        $toyData = []; 
+        $availableParts = [];
+        $selectedUniverse = $preSelectedUniverseId;
+        $manufacturers = [];
+        $lines = [];
+        $masterToys = [];
+        $mtData = null; // Variabel til det valgte objekt
+
+        // --- QUICK ADD LOGIK ---
+        if ($preMasterToyId) {
+            $mtData = $mtModel->getById($preMasterToyId);
+            if ($mtData) {
+                // Pre-udfyld dropdowns
+                $toyData['master_toy_id'] = $mtData['id'];
+                $toyData['line_id'] = $mtData['line_id'];
+                $toyData['manufacturer_id'] = $mtData['manufacturer_id'];
+                $selectedUniverse = $mtData['universe_id'];
+                
+                // Hent lister så dropdowns virker
+                $manufacturers = $this->catalogModel->getManufacturersByUniverse($selectedUniverse);
+                $lines = $this->catalogModel->getLinesByManufacturer($toyData['manufacturer_id']);
+                $masterToys = $this->catalogModel->getMasterToysByLine($toyData['line_id']);
+                
+                // Hent items
+                $availableParts = $this->catalogModel->getMasterToyItems($preMasterToyId);
+            }
+        }
 
         $data = [
-            'universes'  => $this->catalogModel->getAllUniverses(),
-            'sources'    => $this->catalogModel->getSources(),
-            'storages'   => $this->catalogModel->getStorageUnits(),
+            'universes'     => $this->catalogModel->getAllUniverses(),
+            'manufacturers' => $manufacturers,
+            'lines'         => $lines,
+            'masterToys'    => $masterToys,
+            'sources'       => $this->catalogModel->getSources(),
+            'storages'      => $this->catalogModel->getStorageUnits(),
+            'statuses'      => $db->getEnumValues('collection_toys', 'acquisition_status'),
+            'conditions'    => $db->getEnumValues('collection_toys', 'condition'),
+            'completeness'  => $db->getEnumValues('collection_toys', 'completeness_grade'),
             
-            // NYT: Henter enums direkte fra Database-hjælperen
-            'statuses'   => $db->getEnumValues('collection_toys', 'acquisition_status'),
-            'conditions' => $db->getEnumValues('collection_toys', 'condition'),
-            'completeness' => $db->getEnumValues('collection_toys', 'completeness_grade'),
-            
-            'selected_universe' => $preSelectedUniverseId
+            'selected_universe' => $selectedUniverse,
+            'toy'               => $toyData,
+            'availableParts'    => $availableParts,
+            'auto_fill_trigger' => $autoFill,
+            'preSelectedToy'    => $mtData, // NYT: Vi sender hele objektet med!
+            'mode'              => 'create'
         ];
 
         $this->view->renderPartial('add_toy_modal', $data, 'Collection');
@@ -61,15 +99,15 @@ class ToyController extends Controller {
         $parentData = [
             'master_toy_id'       => $_POST['master_toy_id'],
             'is_loose'            => isset($_POST['is_loose']) ? 1 : 0, 
-            'purchase_date'       => $this->nullIfEmpty($_POST['purchase_date']),
-            'purchase_price'      => $this->nullIfEmpty($_POST['purchase_price']),
-            'source_id'           => $this->nullIfEmpty($_POST['source_id']),
-            'acquisition_status'  => $this->nullIfEmpty($_POST['acquisition_status']),
-            'condition'           => $this->nullIfEmpty($_POST['condition']),
-            'completeness_grade'  => $this->nullIfEmpty($_POST['completeness_grade']),
-            'storage_id'          => $this->nullIfEmpty($_POST['storage_id']),
-            'personal_toy_id'     => $this->nullIfEmpty($_POST['personal_toy_id']),
-            'user_comments'       => $this->nullIfEmpty($_POST['user_comments'])
+            'purchase_date'       => $this->nullIfEmpty($_POST['purchase_date'] ?? null),
+            'purchase_price'      => $this->nullIfEmpty($_POST['purchase_price'] ?? null),
+            'source_id'           => $this->nullIfEmpty($_POST['source_id'] ?? null),
+            'acquisition_status'  => $this->nullIfEmpty($_POST['acquisition_status'] ?? null),
+            'condition'           => $this->nullIfEmpty($_POST['condition'] ?? null),
+            'completeness_grade'  => $this->nullIfEmpty($_POST['completeness_grade'] ?? null),
+            'storage_id'          => $this->nullIfEmpty($_POST['storage_id'] ?? null),
+            'personal_toy_id'     => $this->nullIfEmpty($_POST['personal_toy_id'] ?? null),
+            'user_comments'       => $this->nullIfEmpty($_POST['user_comments'] ?? null)
         ];
 
         $parentId = $this->toyModel->create($parentData);
@@ -81,17 +119,17 @@ class ToyController extends Controller {
                 $childData = [
                     'pid'         => $parentId,
                     'mid'         => $item['master_toy_item_id'],
-                    'cond'        => $this->nullIfEmpty($item['condition']),
+                    'cond'        => $this->nullIfEmpty($item['condition'] ?? null),
                     'loose'       => isset($item['is_loose']) ? 1 : 0,
-                    'is_repo'     => $this->nullIfEmpty($item['is_reproduction']),
-                    'comments'    => $this->nullIfEmpty($item['user_comments']),
-                    'p_date'      => $this->nullIfEmpty($item['purchase_date']),
-                    'p_price'     => $this->nullIfEmpty($item['purchase_price']),
-                    'src_id'      => $this->nullIfEmpty($item['source_id']),
-                    'acq_status'  => $this->nullIfEmpty($item['acquisition_status']),
-                    'exp_date'    => $this->nullIfEmpty($item['expected_arrival_date']),
-                    'pers_id'     => $this->nullIfEmpty($item['personal_item_id']),
-                    'stor_id'     => $this->nullIfEmpty($item['storage_id'])
+                    'is_repo'     => $this->nullIfEmpty($item['is_reproduction'] ?? null),
+                    'comments'    => $this->nullIfEmpty($item['user_comments'] ?? null),
+                    'p_date'      => $this->nullIfEmpty($item['purchase_date'] ?? null),
+                    'p_price'     => $this->nullIfEmpty($item['purchase_price'] ?? null),
+                    'src_id'      => $this->nullIfEmpty($item['source_id'] ?? null),
+                    'acq_status'  => $this->nullIfEmpty($item['acquisition_status'] ?? null),
+                    'exp_date'    => $this->nullIfEmpty($item['expected_arrival_date'] ?? null),
+                    'pers_id'     => $this->nullIfEmpty($item['personal_item_id'] ?? null),
+                    'stor_id'     => $this->nullIfEmpty($item['storage_id'] ?? null)
                 ];
 
                 $this->toyModel->createItem($childData);
@@ -114,7 +152,6 @@ class ToyController extends Controller {
              exit;
         }
 
-        // NYT: Bruger CatalogModel og det nye navn getMasterToyItems
         $availableParts = $this->catalogModel->getMasterToyItems($toy['master_toy_id']);
 
         $data = [
@@ -130,8 +167,6 @@ class ToyController extends Controller {
             
             'sources'       => $this->catalogModel->getSources(),
             'storages'      => $this->catalogModel->getStorageUnits(),
-            
-            // Henter enums direkte fra Database
             'statuses'      => $db->getEnumValues('collection_toys', 'acquisition_status'),
             'conditions'    => $db->getEnumValues('collection_toys', 'condition'),
             'completeness'  => $db->getEnumValues('collection_toys', 'completeness_grade'),
@@ -150,28 +185,25 @@ class ToyController extends Controller {
             exit;
         }
 
-        // 1. Opdater Parent Data
         $parentData = [
             'master_toy_id' => $_POST['master_toy_id'],
             'is_loose' => isset($_POST['is_loose']) ? 1 : 0,
-            'purchase_date' => $this->nullIfEmpty($_POST['purchase_date']),
-            'purchase_price' => $this->nullIfEmpty($_POST['purchase_price']),
-            'source_id' => $this->nullIfEmpty($_POST['source_id']),
-            'acquisition_status' => $this->nullIfEmpty($_POST['acquisition_status']),
-            'condition' => $this->nullIfEmpty($_POST['condition']),
-            'completeness_grade' => $this->nullIfEmpty($_POST['completeness_grade']),
-            'storage_id' => $this->nullIfEmpty($_POST['storage_id']),
-            'personal_toy_id' => $this->nullIfEmpty($_POST['personal_toy_id']),
-            'user_comments' => $this->nullIfEmpty($_POST['user_comments'])
+            'purchase_date' => $this->nullIfEmpty($_POST['purchase_date'] ?? null),
+            'purchase_price' => $this->nullIfEmpty($_POST['purchase_price'] ?? null),
+            'source_id' => $this->nullIfEmpty($_POST['source_id'] ?? null),
+            'acquisition_status' => $this->nullIfEmpty($_POST['acquisition_status'] ?? null),
+            'condition' => $this->nullIfEmpty($_POST['condition'] ?? null),
+            'completeness_grade' => $this->nullIfEmpty($_POST['completeness_grade'] ?? null),
+            'storage_id' => $this->nullIfEmpty($_POST['storage_id'] ?? null),
+            'personal_toy_id' => $this->nullIfEmpty($_POST['personal_toy_id'] ?? null),
+            'user_comments' => $this->nullIfEmpty($_POST['user_comments'] ?? null)
         ];
         
         $this->toyModel->update($id, $parentData);
 
-        // 2. Kør Smart Sync på Items (Håndterer opret, opdater og slet)
         if (isset($_POST['items']) && is_array($_POST['items'])) {
             $this->toyModel->saveItems($id, $_POST['items']);
         } else {
-            // Hvis arrayet er tomt (bruger har slettet alt), skal saveItems stadig kaldes for at slette i DB
             $this->toyModel->saveItems($id, []);
         }
         
@@ -183,7 +215,6 @@ class ToyController extends Controller {
     public function media_step() {
         $toyId = (int)($_GET['id'] ?? 0);
         
-        // 1. Hent Parent
         $toy = $this->db->query("
             SELECT ct.id, mt.name as toy_name 
             FROM collection_toys ct
@@ -197,7 +228,6 @@ class ToyController extends Controller {
              exit;
         }
 
-        // 2. Hent Items
         $items = $this->db->query("
             SELECT cti.id, mti.variant_description, s.name as subject_name, s.type
             FROM collection_toy_items cti
@@ -207,21 +237,17 @@ class ToyController extends Controller {
             ['pid' => $toyId]
         )->fetchAll();
 
-        // 3. Hent TAGS
         $tags = $this->mediaModel->getMediaTags();
 
-        // 4. Hent eksisterende billeder
         $toy['images'] = $this->mediaModel->getImages('collection_parent', $toyId);
         foreach ($items as &$item) {
             $item['images'] = $this->mediaModel->getImages('collection_child', $item['id']);
         }
 
-        // 5. Bestem MODE
-        // Hvis 'new_entry' er sat i URL (fra store()), så er vi i 'create' mode. Ellers 'edit'.
         $mode = isset($_GET['new_entry']) ? 'create' : 'edit';
 
         $data = [
-            'mode' => $mode,  // <--- Vi sender nu mode med
+            'mode' => $mode,
             'toy' => $toy,
             'items' => $items,
             'available_tags' => $tags
@@ -240,27 +266,26 @@ class ToyController extends Controller {
             exit;
         }
 
-        // Models
         $uniModel = new UniverseModel();
         $lineModel = new ToyLineModel();
         $sourceModel = new EntertainmentSourceModel();
         $storageModel = new StorageModel();
-        $manModel = new ManufacturerModel(); // NY
-        $ptModel = new ProductTypeModel();   // NY
+        $manModel = new ManufacturerModel();
+        $ptModel = new ProductTypeModel();
         $db = Database::getInstance();
 
         $this->view->render('index', [
             'title' => 'My Collection',
             'universes' => $uniModel->getAllSimple(),
             'lines' => $lineModel->getAllSimple(),
-            'manufacturers' => $manModel->getAllSimple(), // NY
-            'productTypes' => $ptModel->getAllSimple(),   // NY
+            'manufacturers' => $manModel->getAllSimple(),
+            'productTypes' => $ptModel->getAllSimple(),
             'ent_sources' => $sourceModel->getAllSimple(),
             'storage_units' => $storageModel->getAllSimple(),
             'purchase_sources' => $db->query("SELECT * FROM sources ORDER BY name")->fetchAll(),
             'statuses' => $db->getEnumValues('collection_toys', 'acquisition_status'),
-            'conditions' => $db->getEnumValues('collection_toys', 'condition'), // NY (til completeness/condition filter)
-            'grades' => $db->getEnumValues('collection_toys', 'completeness_grade'), // NY
+            'conditions' => $db->getEnumValues('collection_toys', 'condition'),
+            'grades' => $db->getEnumValues('collection_toys', 'completeness_grade'),
             
             'scripts' => [
                 'assets/js/collection-form.js',
@@ -275,17 +300,15 @@ class ToyController extends Controller {
         $filters = [
             'universe_id'           => $_GET['universe_id'] ?? '',
             'line_id'               => $_GET['line_id'] ?? '',
-            'manufacturer_id'       => $_GET['manufacturer_id'] ?? '', // NY
-            'product_type_id'       => $_GET['product_type_id'] ?? '', // NY
+            'manufacturer_id'       => $_GET['manufacturer_id'] ?? '',
+            'product_type_id'       => $_GET['product_type_id'] ?? '',
             'entertainment_source_id' => $_GET['ent_source_id'] ?? '',
             'storage_id'            => $_GET['storage_id'] ?? '',
             'source_id'             => $_GET['source_id'] ?? '',
             'acquisition_status'    => $_GET['status'] ?? '',
-            
-            'completeness'          => $_GET['completeness'] ?? '',    // NY (Grade)
-            'has_missing_parts'     => $_GET['missing_parts'] ?? '',   // NY (Beregnet)
-            'image_status'          => $_GET['image_status'] ?? '',    // NY
-            
+            'completeness'          => $_GET['completeness'] ?? '',
+            'has_missing_parts'     => $_GET['missing_parts'] ?? '',
+            'image_status'          => $_GET['image_status'] ?? '',
             'search'                => $_GET['search'] ?? ''
         ];
 
@@ -295,9 +318,8 @@ class ToyController extends Controller {
     }
 
     public function delete() {
-        // Tjek at det er et POST kald
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405); // Method Not Allowed
+            http_response_code(405);
             exit;
         }
 
@@ -311,33 +333,25 @@ class ToyController extends Controller {
             $this->toyModel->delete($id);
             echo json_encode(['success' => true]);
         } catch (\Exception $e) {
-            // Log evt. fejlen her
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         exit;
     }
 
-    // --- FUNKTION TIL PARTIAL REFRESH ---
     public function get_item_html() {
         $id = (int)($_GET['id'] ?? 0);
         if (!$id) exit('Error: No ID');
 
-        // Vi genbruger getFiltered for at få alle joins, billeder og missing items med
-        // Vi beder om 'raw_result' => true for at slippe for paginerings-arrayet
         $results = $this->toyModel->getFiltered(['id' => $id, 'raw_result' => true], 1, 1);
 
         if (empty($results)) exit('Item not found');
 
-        // Klargør data til grid.php
         $data = [
             'data' => $results,
-            // Vi sender view_mode med, så den ved om det skal være tr eller card
             'view_mode' => $_COOKIE['collection_view_mode'] ?? 'list', 
-            'hide_pagination' => true // Ingen sidetal
+            'hide_pagination' => true
         ];
 
-        // Render grid.php (som nu kun indeholder 1 element)
         $this->view->renderPartial('grid', $data, 'Collection');
     }
-
 }

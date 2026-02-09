@@ -271,17 +271,30 @@ const CollectionMgr = {
 	},
 
 	// Opdaterer en enkelt række/kort uden at reloade hele siden
+	// Opdaterer en enkelt række/kort uden at reloade hele siden
 	refreshItem: function (id) {
 		console.log('CollectionMgr: Refreshing item', id);
 
-		// Vi leder efter elementet med data-id attributten
-		// Dette virker både for table-row (tr) og grid-card (div)
-		const oldEl = document.querySelector(`[data-id="${id}"]`);
+		// RETTELSE: Vi bruger en specifik selector for at undgå at ramme inputs i modalen
+		// Vi leder kun efter .toy-card (grid view) eller tr (list view)
+		let oldEl = null;
 
+		// Hvis vi har en container, søg i den først (sikrest)
+		if (this.container) {
+			oldEl = this.container.querySelector(`[data-id="${id}"]`);
+		}
+
+		// Fallback (hvis vi er på dashboard eller container ikke er sat)
 		if (!oldEl) {
-			console.warn(
-				'CollectionMgr: Could not find element to refresh for ID:',
-				id,
+			oldEl = document.querySelector(
+				`.toy-card[data-id="${id}"], tr[data-id="${id}"]`,
+			);
+		}
+
+		// Hvis kortet slet ikke findes (f.eks. nyt item), stopper vi bare her
+		if (!oldEl) {
+			console.log(
+				'CollectionMgr: Item not found in grid (might be new). Skipping refresh.',
 			);
 			return;
 		}
@@ -300,20 +313,18 @@ const CollectionMgr = {
 				// 1. Prøv at finde elementet specifikt inde i svaret
 				let newEl = temp.querySelector(`[data-id="${id}"]`);
 
-				// 2. Hvis ikke fundet (fordi svaret måske ER elementet uden wrapper), brug første child
+				// 2. Hvis ikke fundet, brug første child
 				if (!newEl && temp.firstElementChild) {
-					// Tjek evt om ID matcher for en sikkerheds skyld, men ofte er det nok bare at tage elementet
 					newEl = temp.firstElementChild;
 				}
 
 				if (newEl) {
 					oldEl.replaceWith(newEl);
 
-					// Flash effekt for visuel feedback
+					// Flash effekt
 					newEl.style.transition = 'background-color 0.5s ease';
-					// Gem den originale farve eller antag transparent/hvid
 					const isRow = newEl.tagName === 'TR';
-					const flashColor = isRow ? '#f8f9fa' : '#e8f5e9'; // Lidt forskellig farve til tabel/kort
+					const flashColor = isRow ? '#f8f9fa' : '#e8f5e9';
 
 					const originalBg = newEl.style.backgroundColor;
 					newEl.style.backgroundColor = flashColor;

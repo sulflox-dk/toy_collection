@@ -457,4 +457,41 @@ class ToyModel {
             'current_page' => $page
         ];
     }
+
+    // --- SHOWCASE: RELATED ITEMS ---
+    public function getRelatedToys(int $toyId, int $masterToyId, int $lineId, int $limit = 5) {
+        // Find andre toys fra samme Master Toy (varianter), men ikke den vi kigger på
+        $variants = $this->db->query("
+            SELECT ct.id, mt.name, mf.file_path as image_path
+            FROM collection_toys ct
+            JOIN master_toys mt ON ct.master_toy_id = mt.id
+            LEFT JOIN collection_toy_media_map ctmm ON ct.id = ctmm.collection_toy_id AND ctmm.is_main = 1
+            LEFT JOIN media_files mf ON ctmm.media_file_id = mf.id
+            WHERE ct.master_toy_id = :mid AND ct.id != :id
+            LIMIT :limit", 
+            ['mid' => $masterToyId, 'id' => $toyId, 'limit' => $limit]
+        )->fetchAll();
+
+        // Find andre toys fra samme Line (hvis der er plads til flere)
+        $others = [];
+        if (count($variants) < $limit) {
+            $needed = $limit - count($variants);
+            $others = $this->db->query("
+                SELECT ct.id, mt.name, mf.file_path as image_path
+                FROM collection_toys ct
+                JOIN master_toys mt ON ct.master_toy_id = mt.id
+                LEFT JOIN collection_toy_media_map ctmm ON ct.id = ctmm.collection_toy_id AND ctmm.is_main = 1
+                LEFT JOIN media_files mf ON ctmm.media_file_id = mf.id
+                WHERE mt.line_id = :lid AND ct.id != :id AND ct.master_toy_id != :mid
+                ORDER BY RAND() -- Lidt tilfældighed for variation
+                LIMIT :limit",
+                ['lid' => $lineId, 'id' => $toyId, 'mid' => $masterToyId, 'limit' => $needed]
+            )->fetchAll();
+        }
+
+        return [
+            'variants' => $variants,
+            'line_mates' => $others
+        ];
+    }
 }

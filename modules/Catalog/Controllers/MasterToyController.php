@@ -62,7 +62,8 @@ class MasterToyController extends Controller {
             'view_mode' => $viewMode,
             'scripts' => [
                 'assets/js/collection-media.js', 
-                'assets/js/master_toy_manager.js'
+                'assets/js/master_toy_manager.js',
+                'assets/js/collection-form.js'
             ] 
         ], 'Catalog');
     }

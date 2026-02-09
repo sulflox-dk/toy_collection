@@ -110,7 +110,7 @@ App.initDependentDropdowns = function () {
 			if (toy.type_name) metaParts.push(toy.type_name);
 			if (toy.source_material_name) metaParts.push(toy.source_material_name);
 
-			// Billede vs Ikon logik (NY)
+			// Billede vs Ikon logik
 			let imgHtml = '<i class="fas fa-robot text-muted"></i>';
 			if (toy.image_path) {
 				imgHtml = `<img src="${toy.image_path}" class="toy-thumb-img" alt="${toy.name}">`;
@@ -196,6 +196,7 @@ App.initDependentDropdowns = function () {
 	};
 
 	const addItemRow = async (data = null) => {
+		// 1. Hent Master Toy items hvis de mangler
 		if (availableMasterToyItems.length === 0 && widgetInput.value) {
 			try {
 				const res = await fetch(
@@ -207,16 +208,37 @@ App.initDependentDropdowns = function () {
 			}
 		}
 
+		// 2. Klon Template og opdater ID'er
 		const index = rowCount++;
 		const clone = template.content.cloneNode(true);
+
+		// Opdater navne og ID'er på inputs
 		clone.querySelectorAll('[name*="INDEX"]').forEach((el) => {
 			el.name = el.name.replace('INDEX', index);
 			if (el.id) el.id = el.id.replace('INDEX', index);
 		});
+
+		// VIGTIGT: Opdater Collapse attributter (så "More Details" knappen virker unikt pr. række)
+		clone.querySelectorAll('[data-bs-target*="INDEX"]').forEach((el) => {
+			el.setAttribute(
+				'data-bs-target',
+				el.getAttribute('data-bs-target').replace('INDEX', index),
+			);
+			el.setAttribute(
+				'aria-controls',
+				el.getAttribute('aria-controls').replace('INDEX', index),
+			);
+		});
+		clone.querySelectorAll('[id*="INDEX"]').forEach((el) => {
+			el.id = el.id.replace('INDEX', index);
+		});
+
+		// Opdater labels (for attribut)
 		clone.querySelectorAll('[for*="INDEX"]').forEach((el) => {
 			el.setAttribute('for', el.getAttribute('for').replace('INDEX', index));
 		});
 
+		// 3. Setup Dropdown (Master Item)
 		const masterToyItemSelect = clone.querySelector(
 			'.master-toy-item-select',
 		);
@@ -234,6 +256,7 @@ App.initDependentDropdowns = function () {
 				'<option value="">Unknown Items (Select Toy above first)</option>';
 		}
 
+		// Lytter til ændringer i dropdown for at opdatere titlen
 		masterToyItemSelect.addEventListener('change', function () {
 			const mti = availableMasterToyItems.find((p) => p.id == this.value);
 			if (mti) {
@@ -245,63 +268,81 @@ App.initDependentDropdowns = function () {
 			}
 		});
 
+		// 4. Udfyld data (hvis det findes - fx ved edit eller "Add All")
 		if (data) {
-			// RETTET: Brug det eksisterende input fra templaten i stedet for at lave et nyt
 			const existingIdInput = clone.querySelector('.item-db-id');
-			if (existingIdInput) {
-				existingIdInput.value = data.id;
-			}
+			if (existingIdInput) existingIdInput.value = data.id;
 
-			titleSpan.textContent = data.master_toy_item_name || 'Item';
+			if (titleSpan)
+				titleSpan.textContent = data.master_toy_item_name || 'Item';
 			if (data.master_toy_item_type && typeSpan)
 				typeSpan.textContent = ` (${data.master_toy_item_type})`;
 
-			if (masterToyItemSelect)
+			if (masterToyItemSelect) {
 				masterToyItemSelect.value = data.master_toy_item_id;
-			clone.querySelector('.input-loose').checked = data.is_loose == 1;
-			clone.querySelector('.input-condition').value = data.condition || '';
-			clone.querySelector('.input-repro').value = data.is_reproduction || '';
-			clone.querySelector('[name*="[purchase_date]"]').value =
-				data.purchase_date || '';
-			clone.querySelector('[name*="[purchase_price]"]').value =
-				data.purchase_price || '';
-			clone.querySelector('[name*="[source_id]"]').value =
-				data.source_id || '';
-			clone.querySelector('[name*="[acquisition_status]"]').value =
-				data.acquisition_status || '';
-			clone.querySelector('[name*="[expected_arrival_date]"]').value =
-				data.expected_arrival_date || '';
-			clone.querySelector('[name*="[personal_item_id]"]').value =
-				data.personal_item_id || '';
-			clone.querySelector('[name*="[storage_id]"]').value =
-				data.storage_id || '';
-			clone.querySelector('[name*="[user_comments]"]').value =
-				data.user_comments || '';
+				// Opdater visuel tekst med det samme
+				masterToyItemSelect.dispatchEvent(new Event('change'));
+			}
 
-			clone.querySelector('.remove-row-btn').onclick = function (e) {
-				e.preventDefault();
-				e.target.closest('.child-item-row').remove();
-				if (countBadge)
-					countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} item(s)`;
+			// Hjælpefunktioner til sikkert at sætte værdier
+			const setVal = (selector, val) => {
+				const el = clone.querySelector(selector);
+				if (el) el.value = val;
 			};
-		} else {
-			clone.querySelector('.remove-row-btn').onclick = function (e) {
+			const setCheck = (selector, isChecked) => {
+				const el = clone.querySelector(selector);
+				if (el) el.checked = isChecked;
+			};
+
+			// Her bruger vi de CSS-klasser, der er i den nye template
+			setCheck('.input-loose', data.is_loose == 1);
+			setVal('.input-condition', data.condition || '');
+			setVal('.input-repro', data.is_reproduction || '');
+
+			// Felter i "More Details" sektionen
+			setVal('.input-p-date', data.purchase_date || '');
+			setVal('.input-price', data.purchase_price || '');
+			setVal('.input-source', data.source_id || '');
+			setVal('.input-acq', data.acquisition_status || '');
+			setVal('.input-exp-date', data.expected_arrival_date || '');
+
+			setVal('.input-pers-id', data.personal_item_id || '');
+			setVal('.input-storage', data.storage_id || '');
+			setVal('.input-comments', data.user_comments || '');
+		}
+
+		// 5. Slet-knap funktionalitet
+		const deleteBtn = clone.querySelector('.remove-row-btn');
+		if (deleteBtn) {
+			deleteBtn.onclick = function (e) {
 				e.preventDefault();
-				e.target.closest('.child-item-row').remove();
+				const row = e.target.closest('.child-item-row');
+				if (row) row.remove();
 				if (countBadge)
 					countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} item(s)`;
 			};
 		}
 
+		// 6. Indsæt i DOM
 		container.appendChild(clone);
+
+		// Opdater tæller
 		if (countBadge)
 			countBadge.textContent = `${container.querySelectorAll('.child-item-row').length} item(s)`;
-		if (!data)
+
+		// Scroll ned (kun ved manuel tilføjelse)
+		if (!data) {
 			container.lastElementChild.scrollIntoView({
 				behavior: 'smooth',
 				block: 'center',
 			});
+		}
 	};
+
+	// Gør den tilgængelig globalt (VIGTIGT for at Add All knappen virker)
+	if (window.CollectionForm) {
+		window.CollectionForm.addItemRow = addItemRow;
+	}
 
 	// Init existing items
 	if (container && container.dataset.items) {
@@ -412,18 +453,55 @@ App.initDependentDropdowns = function () {
 
 	const loadMasterToyItems = (toyId) => {
 		availableMasterToyItems = [];
+
+		// Reset container data attribut
+		const container = document.getElementById('childItemsContainer');
+		if (container) container.dataset.masterToyItems = '[]';
+
+		// Knap referencer
+		const colAll = document.getElementById('colAddAll');
+		const colSingle = document.getElementById('colAddSingle');
+
 		if (!toyId) {
 			refreshExistingRows();
+			// Skjul 'Add All' knap
+			if (colAll) colAll.classList.add('d-none');
+			if (colSingle) {
+				colSingle.classList.remove('col-6');
+				colSingle.classList.add('col-12');
+			}
 			return;
 		}
+
 		fetch(
 			`${App.baseUrl}?module=Collection&controller=Api&action=get_master_toy_items&master_toy_id=${toyId}`,
 		)
 			.then((res) => res.json())
 			.then((data) => {
 				availableMasterToyItems = data;
+
+				// Opdater data på containeren
+				if (container)
+					container.dataset.masterToyItems = JSON.stringify(data);
+
 				refreshExistingRows();
-			});
+
+				// --- Opdater Add All knappen ---
+				if (colAll && colSingle) {
+					if (data.length > 0) {
+						colAll.classList.remove('d-none');
+						colAll.classList.add('col-6');
+						colSingle.classList.remove('col-12');
+						colSingle.classList.add('col-6');
+					} else {
+						colAll.classList.add('d-none');
+						colAll.classList.remove('col-6');
+						colSingle.classList.remove('col-6');
+						colSingle.classList.add('col-12');
+					}
+				}
+			})
+			.catch((err) => console.error('Error loading items:', err));
 	};
 
 	if (universeSelect) {
@@ -504,7 +582,6 @@ App.initDependentDropdowns = function () {
 							submitBtn.innerHTML = originalBtnText;
 
 							if (data.success) {
-								// VIGTIGT: Send form ID med ('addToyForm'), så vi kan finde dataene før modalen dør
 								if (
 									window.CollectionForm &&
 									typeof window.CollectionForm.handleSaveSuccess ===
@@ -539,6 +616,16 @@ App.initDependentDropdowns = function () {
 					submitBtn.disabled = false;
 				});
 		});
+	}
+
+	// --- NYT: Tjek for Auto-Fill Trigger ---
+	const autoAddTrigger = document.getElementById('triggerAutoAddItems');
+	if (autoAddTrigger && window.CollectionForm) {
+		// Vi venter et kort øjeblik for at sikre at DOM og data er klar
+		setTimeout(() => {
+			console.log('Auto-Add Trigger detected: Adding all items...');
+			window.CollectionForm.addAllItemsFromMaster();
+		}, 100);
 	}
 };
 
@@ -606,9 +693,17 @@ window.CollectionForm = {
 		const mgrAvailable = typeof CollectionMgr !== 'undefined';
 
 		// Tjek om kortet rent faktisk findes i DOM'en på den nuværende side
-		const cardOnPage = refreshId
-			? document.querySelector(`[data-id="${refreshId}"]`)
-			: null;
+		let cardOnPage = null;
+		if (mgrAvailable && CollectionMgr.container) {
+			cardOnPage = CollectionMgr.container.querySelector(
+				`[data-id="${refreshId}"]`,
+			);
+		}
+		if (!cardOnPage) {
+			cardOnPage = document.querySelector(
+				`.toy-card[data-id="${refreshId}"], tr[data-id="${refreshId}"]`,
+			);
+		}
 
 		if (data && data.success && mgrAvailable && cardOnPage) {
 			// YES: Kortet er her -> Opdater det (Gælder både Collection List og Dashboard)
@@ -619,5 +714,52 @@ window.CollectionForm = {
 			console.log('Smart Refresh: Item not found or new -> Reloading page');
 			setTimeout(() => window.location.reload(), 300);
 		}
+	},
+
+	/**
+	 * NY FUNKTION: Tilføjer alle definerede dele fra Master Toy som rækker
+	 */
+	addAllItemsFromMaster: function () {
+		const container = document.getElementById('childItemsContainer');
+		if (!container) return;
+
+		// 1. Hent master definitions
+		let masterItems = [];
+		try {
+			masterItems = JSON.parse(container.dataset.masterToyItems || '[]');
+		} catch (e) {
+			console.error('Could not parse master toy items', e);
+			return;
+		}
+
+		if (masterItems.length === 0) {
+			alert('No parts/items defined for this Master Toy in the catalog.');
+			return;
+		}
+
+		// 2. Bekræft hvis der er mange dele (valgfrit, men god UX)
+		if (
+			masterItems.length > 10 &&
+			!confirm(`Add all ${masterItems.length} items?`)
+		) {
+			return;
+		}
+
+		// 3. Loop og tilføj
+		masterItems.forEach((masterItem) => {
+			// Vi konstruerer et data-objekt, som addItemRow forstår
+			const itemData = {
+				master_toy_item_id: masterItem.id, // ID'et på delen
+				condition: '', // Standard værdi
+				is_loose: 1, // Standard (ofte løs hvis man tilføjer dele)
+				quantity: 1,
+			};
+
+			this.addItemRow(itemData);
+		});
+
+		// Scroll til bunden af listen så man ser de nye items
+		const lastRow = container.lastElementChild;
+		if (lastRow) lastRow.scrollIntoView({ behavior: 'smooth', block: 'end' });
 	},
 };
