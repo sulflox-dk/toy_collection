@@ -124,7 +124,7 @@ use CollectionApp\Kernel\Config;
         const SITE_URL = "<?= Config::get('base_url') ?>";
     </script>
 
-    <script src="<?= Config::get('base_url') ?>assets/js/app.js"></script>
+    <script src="<?= Config::get('base_url') ?>assets/js/core/app.js"></script>
     
     <?php if (isset($scripts) && is_array($scripts)): ?>
         <?php foreach ($scripts as $script): ?>
