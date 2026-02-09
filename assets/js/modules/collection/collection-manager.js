@@ -1,353 +1,392 @@
-const CollectionMgr = {
-	// Variabler til at holde styr på tilstand
-	currentPage: 1,
-	baseUrl: '/',
-	container: null,
+/**
+ * Collection Manager
+ * Main manager class for Collection module - extends EntityManager
+ */
+class CollectionManager extends EntityManager {
+    constructor() {
+        super('toy', {
+            module: 'Collection',
+            controller: 'Toy',
+            entityNamePlural: 'toys',
+            ui: {
+                grid: '#collectionGridContainer',
+                modal: '#appModal'
+            },
+            options: {
+                confirmDelete: true,
+                liveValidation: false, // Forms handle their own validation
+                autoRefresh: false // We handle refresh manually
+            }
+        });
 
-	init: function () {
-		console.log('CollectionMgr Init started');
+        // Additional state
+        this.filters = {
+            universe_id: '',
+            line_id: '',
+            ent_source_id: '',
+            storage_id: '',
+            source_id: '',
+            status: '',
+            manufacturer_id: '',
+            product_type_id: '',
+            completeness: '',
+            missing_parts: '',
+            image_status: '',
+            search: ''
+        };
 
-		// Sæt Base URL sikkert (hvis App objektet findes)
-		this.baseUrl =
-			typeof App !== 'undefined' && App.baseUrl ? App.baseUrl : '/';
-		this.container = document.getElementById('collectionGridContainer');
+        // Filter element references
+        this.filterElements = {};
+    }
 
-		// Element referencer til filtre (Inputs)
-		this.search = document.getElementById('searchCollection');
+    /**
+     * Initialize collection manager
+     */
+    init() {
+        console.log('CollectionManager: Initializing...');
 
-		// --- GAMLE FILTRE ---
-		this.fUniverse = document.getElementById('filterUniverse');
-		this.fLine = document.getElementById('filterLine');
-		this.fEntSource = document.getElementById('filterEntSource'); // I HTML hedder den ent_source i nogle versioner, tjek ID
-		if (!this.fEntSource)
-			this.fEntSource = document.getElementById('filterSource'); // Fallback hvis ID varierer
+        this.container = document.getElementById('collectionGridContainer');
 
-		this.fStorage = document.getElementById('filterStorage');
-		this.fSource = document.getElementById('filterPurchaseSource');
-		this.fStatus = document.getElementById('filterStatus');
+        // Initialize UI module
+        if (window.CollectionUi) {
+            CollectionUi.init();
+        }
 
-		// --- NYE FILTRE ---
-		this.fMan = document.getElementById('filterManufacturer');
-		this.fType = document.getElementById('filterProductType');
-		this.fComp = document.getElementById('filterCompleteness');
-		this.fMissing = document.getElementById('filterMissingParts');
-		this.fImg = document.getElementById('filterImage');
+        // Initialize Forms module
+        if (window.CollectionForms) {
+            CollectionForms.init();
+        }
 
-		// 1. Start lyttere på filtrene
-		this.attachFilterListeners();
+        // Initialize Media module if on media page
+        if (document.getElementById('media-upload-container') && window.CollectionMedia) {
+            CollectionMedia.init();
+        }
 
-		// 2. Sæt knap-status baseret på cookie
-		const match = document.cookie.match(
-			new RegExp('(^| )collection_view_mode=([^;]+)'),
-		);
-		const currentMode = match ? match[2] : 'list';
-		this.updateViewButtons(currentMode);
+        // Setup filter elements
+        this.setupFilterElements();
 
-		// 3. GLOBAL CLICK LISTENER (Den robuste løsning)
-		document.body.addEventListener('click', (e) => {
-			// Hjælpefunktion: Find ID fra enten Card (div) eller Table Row (tr)
-			const findId = (el) => {
-				const container = el.closest('[data-id]') || el.closest('tr');
-				return container ? container.dataset.id : null;
-			};
+        // Attach event handlers
+        this.attachEventHandlers();
 
-			// --- DELETE KNAP ---
-			const delBtn = e.target.closest('.btn-delete');
-			if (delBtn) {
-				e.preventDefault();
-				this.handleDelete(delBtn);
-				return;
-			}
+        // Load initial data if container exists
+        if (this.container) {
+            this.loadPage(1);
+        }
 
-			// --- EDIT KNAP ---
-			const editBtn = e.target.closest('.btn-edit');
-			if (editBtn) {
-				e.preventDefault();
-				const id = findId(editBtn);
-				if (id && window.CollectionForm) {
-					CollectionForm.openEditModal(id);
-				}
-				return;
-			}
+        console.log('CollectionManager: Initialization complete');
+    }
 
-			// --- MEDIA KNAP ---
-			const mediaBtn = e.target.closest('.btn-media');
-			if (mediaBtn) {
-				e.preventDefault();
-				const id = findId(mediaBtn);
-				if (id && window.CollectionForm) {
-					CollectionForm.openMediaModal(id);
-				}
-				return;
-			}
-		});
+    /**
+     * Setup filter element references
+     */
+    setupFilterElements() {
+        this.filterElements = {
+            search: document.getElementById('searchCollection'),
+            universe: document.getElementById('filterUniverse'),
+            line: document.getElementById('filterLine'),
+            entSource: document.getElementById('filterEntSource') || document.getElementById('filterSource'),
+            storage: document.getElementById('filterStorage'),
+            source: document.getElementById('filterPurchaseSource'),
+            status: document.getElementById('filterStatus'),
+            manufacturer: document.getElementById('filterManufacturer'),
+            productType: document.getElementById('filterProductType'),
+            completeness: document.getElementById('filterCompleteness'),
+            missingParts: document.getElementById('filterMissingParts'),
+            imageStatus: document.getElementById('filterImage')
+        };
+    }
 
-		// 4. Load indhold (KUN hvis vi er på Collection-siden hvor containeren findes)
-		if (this.container) {
-			// Check om vi har en gemt side i hukommelsen eller start på 1
-			this.loadPage(1);
-		}
-	},
+    /**
+     * Attach event handlers
+     */
+    attachEventHandlers() {
+        // Filter change handlers
+        Object.values(this.filterElements).forEach(el => {
+            if (el) {
+                el.addEventListener('change', () => this.loadPage(1));
+            }
+        });
 
-	// Skift visning (List/Cards)
-	switchView: function (mode) {
-		document.cookie =
-			'collection_view_mode=' + mode + '; path=/; max-age=31536000'; // Gem i 1 år
-		this.updateViewButtons(mode);
+        // Search with debounce
+        if (this.filterElements.search) {
+            const debouncedSearch = UiHelper.debounce(() => this.loadPage(1), 400);
+            this.filterElements.search.addEventListener('keyup', debouncedSearch);
+        }
 
-		// Genindlæs listen hvis vi er på collection siden
-		if (this.container) {
-			this.loadPage(this.currentPage || 1);
-		} else {
-			// Hvis vi er på dashboard eller andet sted, reload siden
-			window.location.reload();
-		}
-	},
+        // Reset filters button
+        const resetBtn = document.getElementById('btnResetFilters');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetFilters());
+        }
 
-	// Opdater visuel status på knapperne
-	updateViewButtons: function (mode) {
-		const btnList = document.getElementById('btn-view-list');
-		const btnCards = document.getElementById('btn-view-cards');
+        // Global click handler for buttons
+        document.body.addEventListener('click', (e) => {
+            this.handleGlobalClick(e);
+        });
+    }
 
-		if (btnList && btnCards) {
-			if (mode === 'list') {
-				btnList.classList.add('active', 'bg-secondary', 'text-white');
-				btnCards.classList.remove('active', 'bg-secondary', 'text-white');
-			} else {
-				btnCards.classList.add('active', 'bg-secondary', 'text-white');
-				btnList.classList.remove('active', 'bg-secondary', 'text-white');
-			}
-		}
-	},
+    /**
+     * Handle global click events
+     * @param {Event} e - Click event
+     */
+    handleGlobalClick(e) {
+        // Helper to find data-id
+        const findId = (el) => {
+            const container = el.closest('[data-id]') || el.closest('tr');
+            return container ? container.dataset.id : null;
+        };
 
-	// Håndter sletning
-	handleDelete: function (btn) {
-		if (
-			!confirm(
-				'Are you sure? This will delete the toy and all associated images permanently.',
-			)
-		) {
-			return;
-		}
+        // Delete button
+        const delBtn = e.target.closest('.btn-delete');
+        if (delBtn) {
+            e.preventDefault();
+            this.handleDelete(delBtn);
+            return;
+        }
 
-		const container = btn.closest('[data-id]') || btn.closest('tr');
-		const id = container ? container.dataset.id : null;
+        // Edit button
+        const editBtn = e.target.closest('.btn-edit');
+        if (editBtn) {
+            e.preventDefault();
+            const id = findId(editBtn);
+            if (id && window.CollectionForms) {
+                CollectionForms.openEditModal(id);
+            }
+            return;
+        }
 
-		if (!id) return;
+        // Media button
+        const mediaBtn = e.target.closest('.btn-media');
+        if (mediaBtn) {
+            e.preventDefault();
+            const id = findId(mediaBtn);
+            if (id && window.CollectionForms) {
+                CollectionForms.openMediaModal(id);
+            }
+            return;
+        }
+    }
 
-		// Visuel feedback
-		container.style.opacity = '0.3';
+    /**
+     * Handle delete action
+     * @param {HTMLElement} btn - Delete button
+     */
+    async handleDelete(btn) {
+        const container = btn.closest('[data-id]') || btn.closest('tr');
+        const id = container ? container.dataset.id : null;
 
-		// Vi bruger et POST kald til delete actionen i stedet for get_item_html hacket
-		const formData = new FormData();
-		formData.append('id', id);
+        if (!id) return;
 
-		fetch(`${this.baseUrl}?module=Collection&controller=Toy&action=delete`, {
-			method: 'POST',
-			body: formData,
-		})
-			.then((res) => res.json())
-			.then((data) => {
-				if (data.success) {
-					if (window.App && App.showToast)
-						App.showToast('Item deleted successfully!');
+        // Confirm deletion
+        const confirmed = await UiHelper.confirm(
+            'Are you sure? This will delete the toy and all associated images permanently.',
+            'Confirm Delete',
+            { danger: true, confirmText: 'Delete', cancelText: 'Cancel' }
+        );
 
-					// Reload grid
-					if (this.container) {
-						this.loadPage(this.currentPage);
-					} else {
-						window.location.reload();
-					}
-				} else {
-					container.style.opacity = '1';
-					alert('Error deleting: ' + (data.error || 'Unknown error'));
-				}
-			})
-			.catch((err) => {
-				container.style.opacity = '1';
-				console.error(err);
-				alert('System error occurred.');
-			});
-	},
+        if (!confirmed) return;
 
-	attachFilterListeners: function () {
-		const filters = [
-			this.fUniverse,
-			this.fLine,
-			this.fEntSource,
-			this.fStorage,
-			this.fSource,
-			this.fStatus,
-			// Nye filtre:
-			this.fMan,
-			this.fType,
-			this.fComp,
-			this.fMissing,
-			this.fImg,
-		];
+        // Show loading state
+        container.style.opacity = '0.3';
 
-		filters.forEach((f) => {
-			if (f) f.addEventListener('change', () => this.loadPage(1));
-		});
+        try {
+            const response = await CollectionApi.delete(id);
 
-		let timeout;
-		if (this.search) {
-			this.search.addEventListener('keyup', () => {
-				clearTimeout(timeout);
-				timeout = setTimeout(() => this.loadPage(1), 400);
-			});
-		}
-	},
+            if (response.success) {
+                UiHelper.showSuccess('Toy deleted successfully');
 
-	resetFilters: function () {
-		if (this.search) this.search.value = '';
+                // Reload grid
+                if (this.container) {
+                    this.loadPage(this.currentPage);
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                container.style.opacity = '1';
+                UiHelper.showError(response.error || 'Failed to delete toy');
+            }
+        } catch (error) {
+            container.style.opacity = '1';
+            console.error('Delete failed:', error);
+            UiHelper.showError('Failed to delete toy');
+        }
+    }
 
-		// Nulstil alle referencer vi kender
-		const filters = [
-			this.fUniverse,
-			this.fLine,
-			this.fEntSource,
-			this.fStorage,
-			this.fSource,
-			this.fStatus,
-			this.fMan,
-			this.fType,
-			this.fComp,
-			this.fMissing,
-			this.fImg,
-		];
+    /**
+     * Delete collection item (child item)
+     * @param {number} itemId - Item ID
+     * @param {HTMLElement} btnElement - Button element
+     */
+    async deleteToyItem(itemId, btnElement) {
+        const confirmed = await UiHelper.confirmDelete('this item from your collection');
+        
+        if (!confirmed) return;
 
-		filters.forEach((f) => {
-			if (f) f.value = '';
-		});
+        try {
+            const response = await CollectionApi.deleteItem(itemId);
 
-		this.loadPage(1);
-	},
+            if (response.success) {
+                const row = btnElement.closest('.child-item-row');
 
-	loadPage: function (page) {
-		this.currentPage = page;
+                if (row) {
+                    // Deletion inside modal
+                    UiHelper.fadeOut(row, 300);
+                    setTimeout(() => row.remove(), 300);
+                } else {
+                    // Deletion from dashboard/grid
+                    const card = document.querySelector(`[data-id="${itemId}"]`);
+                    if (card) {
+                        UiHelper.fadeOut(card, 300);
+                        setTimeout(() => {
+                            this.loadPage(this.currentPage || 1);
+                        }, 300);
+                    } else {
+                        window.location.reload();
+                    }
+                }
 
-		// Byg parametre
-		const params = new URLSearchParams({
-			module: 'Collection',
-			controller: 'Toy',
-			action: 'index',
-			ajax_grid: 1,
-			page: page,
+                UiHelper.showSuccess('Item deleted successfully');
+            } else {
+                UiHelper.showError(response.error || 'Failed to delete item');
+            }
+        } catch (error) {
+            console.error('Delete item failed:', error);
+            UiHelper.showError('Failed to delete item');
+        }
+    }
 
-			// Gamle
-			universe_id: this.fUniverse ? this.fUniverse.value : '',
-			line_id: this.fLine ? this.fLine.value : '',
-			ent_source_id: this.fEntSource ? this.fEntSource.value : '',
-			storage_id: this.fStorage ? this.fStorage.value : '',
-			source_id: this.fSource ? this.fSource.value : '',
-			status: this.fStatus ? this.fStatus.value : '',
+    /**
+     * Reset all filters
+     */
+    resetFilters() {
+        // Reset filter elements
+        Object.values(this.filterElements).forEach(el => {
+            if (el) {
+                el.value = '';
+            }
+        });
 
-			// Nye
-			manufacturer_id: this.fMan ? this.fMan.value : '',
-			product_type_id: this.fType ? this.fType.value : '',
-			completeness: this.fComp ? this.fComp.value : '',
-			missing_parts: this.fMissing ? this.fMissing.value : '', // Bemærk navn matcher PHP
-			image_status: this.fImg ? this.fImg.value : '',
+        // Reset filters object
+        this.filters = {
+            universe_id: '',
+            line_id: '',
+            ent_source_id: '',
+            storage_id: '',
+            source_id: '',
+            status: '',
+            manufacturer_id: '',
+            product_type_id: '',
+            completeness: '',
+            missing_parts: '',
+            image_status: '',
+            search: ''
+        };
 
-			search: this.search ? this.search.value : '',
-		});
+        // Reload
+        this.loadPage(1);
+    }
 
-		if (this.container) {
-			this.container.style.opacity = '0.5';
-			fetch(`${this.baseUrl}?${params.toString()}`)
-				.then((res) => res.text())
-				.then((html) => {
-					this.container.innerHTML = html;
-					this.container.style.opacity = '1';
-				})
-				.catch((err) => {
-					console.error('Load failed:', err);
-					this.container.innerHTML =
-						'<div class="alert alert-danger p-3">Failed to load data.</div>';
-					this.container.style.opacity = '1';
-				});
-		}
-	},
+    /**
+     * Build filter parameters from current state
+     * @returns {Object} Filter parameters
+     */
+    buildFilterParams() {
+        return {
+            universe_id: this.filterElements.universe?.value || '',
+            line_id: this.filterElements.line?.value || '',
+            ent_source_id: this.filterElements.entSource?.value || '',
+            storage_id: this.filterElements.storage?.value || '',
+            source_id: this.filterElements.source?.value || '',
+            status: this.filterElements.status?.value || '',
+            manufacturer_id: this.filterElements.manufacturer?.value || '',
+            product_type_id: this.filterElements.productType?.value || '',
+            completeness: this.filterElements.completeness?.value || '',
+            missing_parts: this.filterElements.missingParts?.value || '',
+            image_status: this.filterElements.imageStatus?.value || '',
+            search: this.filterElements.search?.value || ''
+        };
+    }
 
-	// Opdaterer en enkelt række/kort uden at reloade hele siden
-	// Opdaterer en enkelt række/kort uden at reloade hele siden
-	refreshItem: function (id) {
-		console.log('CollectionMgr: Refreshing item', id);
+    /**
+     * Load page with filters
+     * @param {number} page - Page number
+     */
+    async loadPage(page) {
+        this.currentPage = page;
 
-		// RETTELSE: Vi bruger en specifik selector for at undgå at ramme inputs i modalen
-		// Vi leder kun efter .toy-card (grid view) eller tr (list view)
-		let oldEl = null;
+        if (!this.container) return;
 
-		// Hvis vi har en container, søg i den først (sikrest)
-		if (this.container) {
-			oldEl = this.container.querySelector(`[data-id="${id}"]`);
-		}
+        try {
+            // Show loading state
+            CollectionUi.showLoading();
 
-		// Fallback (hvis vi er på dashboard eller container ikke er sat)
-		if (!oldEl) {
-			oldEl = document.querySelector(
-				`.toy-card[data-id="${id}"], tr[data-id="${id}"]`,
-			);
-		}
+            // Build filter parameters
+            const filters = this.buildFilterParams();
 
-		// Hvis kortet slet ikke findes (f.eks. nyt item), stopper vi bare her
-		if (!oldEl) {
-			console.log(
-				'CollectionMgr: Item not found in grid (might be new). Skipping refresh.',
-			);
-			return;
-		}
+            // Fetch data (now returns JSON object)
+            const data = await CollectionApi.getAll(filters, page);
 
-		oldEl.style.opacity = '0.5';
+            // Render grid with data
+            CollectionUi.renderGrid(data);
+        } catch (error) {
+            console.error('Load page failed:', error);
+            CollectionUi.renderError('Failed to load toys. Please try again.');
+        } finally {
+            CollectionUi.hideLoading();
+        }
+    }
 
-		// Cache busting med &t=...
-		const url = `${this.baseUrl}?module=Collection&controller=Toy&action=get_item_html&id=${id}&t=${new Date().getTime()}`;
+    /**
+     * Refresh single item
+     * @param {number} id - Item ID
+     */
+    async refreshItem(id) {
+        console.log('CollectionManager: Refreshing item', id);
 
-		fetch(url)
-			.then((res) => res.text())
-			.then((html) => {
-				const temp = document.createElement('div');
-				temp.innerHTML = html;
+        try {
+            const data = await CollectionApi.getById(id);
+            CollectionUi.refreshItem(id, data);
+        } catch (error) {
+            console.error('Refresh item failed:', error);
+        }
+    }
 
-				// 1. Prøv at finde elementet specifikt inde i svaret
-				let newEl = temp.querySelector(`[data-id="${id}"]`);
+    /**
+     * Refresh after successful save
+     * @param {number} id - Saved item ID
+     */
+    refreshAfterSave(id) {
+        // Check if item exists in current grid
+        const itemExists = this.container 
+            ? this.container.querySelector(`[data-id="${id}"]`) !== null
+            : document.querySelector(`.toy-card[data-id="${id}"], tr[data-id="${id}"]`) !== null;
 
-				// 2. Hvis ikke fundet, brug første child
-				if (!newEl && temp.firstElementChild) {
-					newEl = temp.firstElementChild;
-				}
+        if (itemExists) {
+            // Item exists - refresh it
+            console.log('Smart Refresh: Updating item', id);
+            this.refreshItem(id);
+        } else {
+            // Item is new or not in current view - reload page
+            console.log('Smart Refresh: Item not found, reloading page');
+            setTimeout(() => window.location.reload(), 300);
+        }
+    }
+}
 
-				if (newEl) {
-					oldEl.replaceWith(newEl);
-
-					// Flash effekt
-					newEl.style.transition = 'background-color 0.5s ease';
-					const isRow = newEl.tagName === 'TR';
-					const flashColor = isRow ? '#f8f9fa' : '#e8f5e9';
-
-					const originalBg = newEl.style.backgroundColor;
-					newEl.style.backgroundColor = flashColor;
-
-					setTimeout(() => {
-						newEl.style.backgroundColor = originalBg || '';
-					}, 800);
-
-					console.log('CollectionMgr: Refresh success!');
-				} else {
-					console.error(
-						'CollectionMgr: Kunne ikke finde det nye element i svaret.',
-					);
-					oldEl.style.opacity = '1';
-				}
-			})
-			.catch((err) => {
-				console.error('Refresh failed:', err);
-				oldEl.style.opacity = '1';
-			});
-	},
-};
-
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-	CollectionMgr.init();
+    // Create instance
+    const collectionManagerInstance = new CollectionManager();
+    collectionManagerInstance.init();
+    
+    // Make instance globally available
+    window.CollectionManager = collectionManagerInstance;
+    
+    // Legacy compatibility
+    window.CollectionMgr = collectionManagerInstance;
+    window.App = window.App || {};
+    App.deleteToyItem = (itemId, btnElement) => collectionManagerInstance.deleteToyItem(itemId, btnElement);
+    App.initDependentDropdowns = () => {
+        if (window.CollectionForms) CollectionForms.init();
+    };
 });
