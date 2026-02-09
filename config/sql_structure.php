@@ -3,13 +3,13 @@
 /*
 
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
--- Vært: 127.0.0.1:3306
--- Genereringstid: 03. 02 2026 kl. 19:47:37
--- Serverversion: 9.1.0
--- PHP-version: 8.3.14
+-- VÃ¦rt: 127.0.0.1:3306
+-- Genereringstid: 09. 02 2026 kl. 17:59:19
+-- Serverversion: 8.4.7
+-- PHP-version: 8.3.28
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `collection_toys` (
   `id` int NOT NULL AUTO_INCREMENT,
   `master_toy_id` int NOT NULL,
   `date_added` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `acquisition_status` enum('In Hand','Pre-order','Shipped','Paid','Backordered','Customs') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'In Hand',
+  `acquisition_status` enum('Arrived','Ordered','Pre-ordered') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'Arrived',
   `expected_arrival_date` date DEFAULT NULL,
   `source_id` int DEFAULT NULL,
   `storage_id` int DEFAULT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `collection_toy_items` (
   `is_reproduction` enum('Original','Reproduction','Unknown') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_loose` tinyint(1) DEFAULT '1',
   `personal_item_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `acquisition_status` enum('In Hand','Pre-order','Shipped','Paid','Backordered','Customs') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `acquisition_status` enum('Arrived','Ordered','Pre-ordered') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `expected_arrival_date` date DEFAULT NULL,
   `source_id` int DEFAULT NULL,
   `storage_id` int DEFAULT NULL,
@@ -124,8 +124,8 @@ DROP TABLE IF EXISTS `entertainment_sources`;
 CREATE TABLE IF NOT EXISTS `entertainment_sources` (
   `id` int NOT NULL AUTO_INCREMENT,
   `universe_id` int NOT NULL COMMENT 'Fx Star Wars universe ID',
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Fx The Empire Strikes Back',
-  `type` enum('Movie','Series','Game','Book','Comic','Other') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Other',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Fx The Empire Strikes Back',
+  `type` enum('Movie','Series','Game','Book','Comic','Other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Other',
   `release_year` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `universe_id` (`universe_id`)
@@ -371,35 +371,36 @@ CREATE TABLE IF NOT EXISTS `universes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Begrænsninger for dumpede tabeller
+-- BegrÃ¦nsninger for dumpede tabeller
 --
 
 --
--- Begrænsninger for tabel `entertainment_sources`
+-- BegrÃ¦nsninger for tabel `entertainment_sources`
 --
 ALTER TABLE `entertainment_sources`
   ADD CONSTRAINT `fk_ent_source_universe` FOREIGN KEY (`universe_id`) REFERENCES `universes` (`id`) ON DELETE CASCADE;
 
 --
--- Begrænsninger for tabel `master_toys`
+-- BegrÃ¦nsninger for tabel `master_toys`
 --
 ALTER TABLE `master_toys`
   ADD CONSTRAINT `fk_toy_ent_source` FOREIGN KEY (`entertainment_source_id`) REFERENCES `entertainment_sources` (`id`) ON DELETE SET NULL;
 
 --
--- Begrænsninger for tabel `master_toy_item_media_map`
+-- BegrÃ¦nsninger for tabel `master_toy_item_media_map`
 --
 ALTER TABLE `master_toy_item_media_map`
   ADD CONSTRAINT `fk_mti_item` FOREIGN KEY (`master_toy_item_id`) REFERENCES `master_toy_items` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_mti_media` FOREIGN KEY (`media_file_id`) REFERENCES `media_files` (`id`) ON DELETE CASCADE;
 
 --
--- Begrænsninger for tabel `master_toy_media_map`
+-- BegrÃ¦nsninger for tabel `master_toy_media_map`
 --
 ALTER TABLE `master_toy_media_map`
   ADD CONSTRAINT `fk_mt_media` FOREIGN KEY (`media_file_id`) REFERENCES `media_files` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_mt_toy` FOREIGN KEY (`master_toy_id`) REFERENCES `master_toys` (`id`) ON DELETE CASCADE;
 COMMIT;
+
 
 
 

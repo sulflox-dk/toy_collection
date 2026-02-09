@@ -36,7 +36,7 @@ class ToyLineController extends Controller {
             'manufacturers' => $manufacturers,
             'universes' => $universes,
             'initialData' => $initialData,
-            'scripts' => ['assets/js/toy_line_manager.js']
+            'scripts' => ['assets/js/modules/catalog/toy-line-manager.js']
         ], 'Catalog');
     }
 

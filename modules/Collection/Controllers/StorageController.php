@@ -20,7 +20,7 @@ class StorageController extends Controller {
 
         $this->view->render('storage_index', [
             'title' => 'My Collection: Storage',
-            'scripts' => ['assets/js/storage_manager.js']
+            'scripts' => ['assets/js/modules/collection/storage-manager.js']
         ], 'Collection');
     }
 

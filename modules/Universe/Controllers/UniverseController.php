@@ -19,7 +19,7 @@ class UniverseController extends Controller {
         $this->view->render('index', [
             'title' => 'Manage Universes',
             'universes' => $universes,
-            'scripts' => ['assets/js/universe_manager.js']
+            'scripts' => ['assets/js/modules/universe/universe-manager.js']
         ], 'Universe'); // Viewet ligger i modules/Universe/Views/
     }
 

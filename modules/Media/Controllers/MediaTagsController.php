@@ -19,7 +19,7 @@ class MediaTagsController extends Controller {
         $this->view->render('tags_index', [
             'title' => 'Media Tags',
             'tags' => $tags,
-            'scripts' => ['assets/js/media_tags.js'] // Vi opretter denne om lidt
+            'scripts' => ['assets/js/modules/media/media-tags.js'] // Vi opretter denne om lidt
         ], 'Media');
     }
 

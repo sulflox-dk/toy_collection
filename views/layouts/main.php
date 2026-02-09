@@ -11,11 +11,11 @@ use CollectionApp\Kernel\Config;
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
-    <link href="<?= Config::get('base_url') ?>assets/css/core.css?v=<?= time() ?>" rel="stylesheet">
-    <link href="<?= Config::get('base_url') ?>assets/css/dashboard.css?v=<?= time() ?>" rel="stylesheet">
-    <link href="<?= Config::get('base_url') ?>assets/css/collection.css?v=<?= time() ?>" rel="stylesheet">
-    <link href="<?= Config::get('base_url') ?>assets/css/catalog.css?v=<?= time() ?>" rel="stylesheet">
-    <link href="<?= Config::get('base_url') ?>assets/css/media_library.css?v=<?= time() ?>" rel="stylesheet">
+    <link href="<?= Config::get('base_url') ?>assets/css/core/core.css?v=<?= time() ?>" rel="stylesheet">
+    <link href="<?= Config::get('base_url') ?>assets/css/modules/dashboard.css?v=<?= time() ?>" rel="stylesheet">
+    <link href="<?= Config::get('base_url') ?>assets/css/modules/collection.css?v=<?= time() ?>" rel="stylesheet">
+    <link href="<?= Config::get('base_url') ?>assets/css/modules/catalog.css?v=<?= time() ?>" rel="stylesheet">
+    <link href="<?= Config::get('base_url') ?>assets/css/modules/media-library.css?v=<?= time() ?>" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
@@ -122,16 +122,24 @@ use CollectionApp\Kernel\Config;
 
     <script>
         const SITE_URL = "<?= Config::get('base_url') ?>";
+        const ASSETS_URI = "<?= ASSETS_URI ?>";
+        const UPLOADS_URI = "<?= UPLOADS_URI ?>";
     </script>
 
-    <script src="<?= Config::get('base_url') ?>assets/js/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="<?= Config::get('base_url') ?>assets/js/core/api-client.js?v=<?= time() ?>"></script>
+    <script src="<?= Config::get('base_url') ?>assets/js/core/ui-helper.js?v=<?= time() ?>"></script>
+    <script src="<?= Config::get('base_url') ?>assets/js/core/validation.js?v=<?= time() ?>"></script>
+    
+    <script src="<?= Config::get('base_url') ?>assets/js/core/entity-manager.js?v=<?= time() ?>"></script>
+
+    <script src="<?= Config::get('base_url') ?>assets/js/core/app.js?v=<?= time() ?>"></script>
     
     <?php if (isset($scripts) && is_array($scripts)): ?>
         <?php foreach ($scripts as $script): ?>
-            <script src="<?= Config::get('base_url') . $script ?>"></script>
+            <script src="<?= Config::get('base_url') . $script ?>?v=<?= time() ?>"></script>
         <?php endforeach; ?>
     <?php endif; ?>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>

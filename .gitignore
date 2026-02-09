@@ -1,10 +1,16 @@
 # --- SIKKERHED ---
 # Ignorer konfigurationsfilen med dine database-kodeord!
 config/config.php
+<<<<<<< HEAD
 config/database.php
 config/app.php
 config/constants.php
 
+=======
+config/app.php
+config/database.php
+config/constants.php
+>>>>>>> refactor/phase-1-structure
 
 # --- FILER & MAPPER ---
 # Ignorer uploadede billeder (de fylder for meget og hører til lokalt)

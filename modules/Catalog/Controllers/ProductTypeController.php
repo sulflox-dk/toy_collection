@@ -24,7 +24,7 @@ class ProductTypeController extends Controller {
         $this->view->render('product_types_index', [
             'title' => 'Manage Product Types',
             'initialData' => $initialData,
-            'scripts' => ['assets/js/product_type_manager.js']
+            'scripts' => ['assets/js/modules/catalog/product-type-manager.js']
         ], 'Catalog');
     }
 

@@ -28,15 +28,15 @@ class MediaLibraryController extends Controller {
             'title' => 'Media Library',
             'tags' => $tags,
             'scripts' => [
-                'assets/js/media_library.js' // Vi laver denne fil om lidt
+                'assets/js/modules/media/media-library.js' // Vi laver denne fil om lidt
             ],
             'styles' => [
-                'assets/css/media_library.css' // Og denne
+                'assets/css/modules/media-library.css' // Og denne
             ]
         ], 'Media');
     }
 
-    // Helper til at rendere selve grid-HTML'en (bruges både ved load og ajax)
+    // Helper til at rendere selve grid-HTML'en (bruges bï¿½de ved load og ajax)
     private function renderGrid() {
         $page = (int)($_GET['page'] ?? 1);
         $filters = [
@@ -47,7 +47,7 @@ class MediaLibraryController extends Controller {
 
         $data = $this->mediaModel->getLibraryImages($filters, $page, 30); // 30 pr side
 
-        // Send HTML tilbage (ikke JSON, men HTML fragmenter, nemmere at indsætte)
+        // Send HTML tilbage (ikke JSON, men HTML fragmenter, nemmere at indsï¿½tte)
         // Vi bruger en lille intern view-fil til grid-items
         $this->view->renderPartial('library_grid', $data, 'Media');
     }

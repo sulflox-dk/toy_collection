@@ -20,7 +20,7 @@ class SubjectController extends Controller {
             exit;
         }
 
-        // Hent ENUM værdier til dropdown
+        // Hent ENUM vï¿½rdier til dropdown
         $types = Database::getInstance()->getEnumValues('subjects', 'type');
         
         // Initial data
@@ -30,7 +30,7 @@ class SubjectController extends Controller {
             'title' => 'Manage Subjects',
             'types' => $types,
             'initialData' => $initialData,
-            'scripts' => ['assets/js/subject_manager.js']
+            'scripts' => ['assets/js/modules/universe/subject-manager.js']
         ], 'Universe');
     }
 

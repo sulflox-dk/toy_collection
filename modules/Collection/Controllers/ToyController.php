@@ -13,6 +13,8 @@ use CollectionApp\Modules\Collection\Models\StorageModel;
 use CollectionApp\Modules\Catalog\Models\ManufacturerModel;
 use CollectionApp\Modules\Catalog\Models\ProductTypeModel;
 use CollectionApp\Modules\Catalog\Models\MasterToyModel;
+use CollectionApp\Kernel\Http\Request;
+use CollectionApp\Kernel\Http\Response;
 
 class ToyController extends Controller {
 
@@ -261,11 +263,13 @@ class ToyController extends Controller {
     }
 
     public function index() {
-        if (isset($_GET['ajax_grid'])) {
-            $this->renderGrid();
-            exit;
+        // Check if this is an AJAX request for grid data
+        if (Request::has('ajax_grid')) {
+            $this->getGridData();
+            return;
         }
 
+        // Full page view - render the collection index page
         $uniModel = new UniverseModel();
         $lineModel = new ToyLineModel();
         $sourceModel = new EntertainmentSourceModel();
@@ -288,12 +292,16 @@ class ToyController extends Controller {
             'grades' => $db->getEnumValues('collection_toys', 'completeness_grade'),
             
             'scripts' => [
-                'assets/js/collection-form.js',
-                'assets/js/collection_manager.js',
-                'assets/js/collection-media.js'
+                'assets/js/modules/collection/collection-api.js',
+                'assets/js/modules/collection/collection-ui.js',
+                'assets/js/modules/collection/collection-forms.js',
+                'assets/js/modules/collection/collection-media.js',
+                'assets/js/modules/collection/collection-manager.js',
+                'assets/js/modules/collection/index.js',
             ]
         ], 'Collection');
     }
+
 
     private function renderGrid() {
         $page = (int)($_GET['page'] ?? 1);
@@ -318,40 +326,91 @@ class ToyController extends Controller {
     }
 
     public function delete() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            exit;
+        if (!Request::isPost()) {
+            Response::error('Method not allowed', 405);
+            return;
         }
 
-        $id = (int)($_POST['id'] ?? 0);
+        $id = Request::int('id');
+        
         if (!$id) {
-            echo json_encode(['success' => false, 'error' => 'Missing ID']);
-            exit;
+            Response::error('Missing toy ID', 400);
+            return;
         }
 
         try {
             $this->toyModel->delete($id);
-            echo json_encode(['success' => true]);
+            Response::success(null, 'Toy deleted successfully');
         } catch (\Exception $e) {
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            Response::serverError('Failed to delete toy: ' . $e->getMessage());
         }
-        exit;
     }
 
+
     public function get_item_html() {
-        $id = (int)($_GET['id'] ?? 0);
-        if (!$id) exit('Error: No ID');
+        $id = Request::int('id');
+        
+        if (!$id) {
+            Response::error('Missing toy ID', 400);
+            return;
+        }
 
-        $results = $this->toyModel->getFiltered(['id' => $id, 'raw_result' => true], 1, 1);
+        try {
+            $results = $this->toyModel->getFiltered(['id' => $id, 'raw_result' => true], 1, 1);
 
-        if (empty($results)) exit('Item not found');
+            if (empty($results)) {
+                Response::notFound('Toy not found');
+                return;
+            }
 
-        $data = [
-            'data' => $results,
-            'view_mode' => $_COOKIE['collection_view_mode'] ?? 'list', 
-            'hide_pagination' => true
+            $viewMode = $_COOKIE['collection_view_mode'] ?? 'cards';
+
+            Response::success([
+                'toy' => $results[0],
+                'view_mode' => $viewMode
+            ]);
+        } catch (\Exception $e) {
+            Response::serverError('Failed to load toy: ' . $e->getMessage());
+        }
+    }
+
+    private function getGridData() {
+        $page = Request::int('page', 1);
+        $perPage = 20;
+        
+        $filters = [
+            'universe_id'           => Request::string('universe_id'),
+            'line_id'               => Request::string('line_id'),
+            'manufacturer_id'       => Request::string('manufacturer_id'),
+            'product_type_id'       => Request::string('product_type_id'),
+            'entertainment_source_id' => Request::string('ent_source_id'),
+            'storage_id'            => Request::string('storage_id'),
+            'source_id'             => Request::string('source_id'),
+            'acquisition_status'    => Request::string('status'),
+            'completeness'          => Request::string('completeness'),
+            'has_missing_parts'     => Request::string('missing_parts'),
+            'image_status'          => Request::string('image_status'),
+            'search'                => Request::string('search')
         ];
 
-        $this->view->renderPartial('grid', $data, 'Collection');
+        try {
+            $result = $this->toyModel->getFiltered($filters, $page, $perPage);
+            
+            // Add view mode from cookie
+            $viewMode = $_COOKIE['collection_view_mode'] ?? 'cards';
+            
+            Response::success([
+                'toys' => $result['data'] ?? [],
+                'pagination' => [
+                    'current_page' => $page,
+                    'total_pages' => $result['total_pages'] ?? 1,
+                    'total_items' => $result['total'] ?? 0,
+                    'per_page' => $perPage
+                ],
+                'view_mode' => $viewMode
+            ]);
+        } catch (\Exception $e) {
+            Response::serverError('Failed to load toys: ' . $e->getMessage());
+        }
     }
 }

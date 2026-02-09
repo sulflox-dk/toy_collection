@@ -26,7 +26,7 @@ class ManufacturerController extends Controller {
         $this->view->render('manufacturers_index', [
             'title' => 'Manage Manufacturers',
             'initialData' => $initialData,
-            'scripts' => ['assets/js/manufacturer_manager.js']
+            'scripts' => ['assets/js/modules/catalog/manufacturer-manager.js']
         ], 'Catalog');
     }
 

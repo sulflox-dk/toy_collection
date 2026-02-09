@@ -28,7 +28,7 @@ class EntertainmentSourceController extends Controller {
         $universes = $this->universeModel->getAllWithStats();
         $types = Database::getInstance()->getEnumValues('entertainment_sources', 'type');
 
-        // Vi loader første side af data med det samme til initial visning
+        // Vi loader fï¿½rste side af data med det samme til initial visning
         $initialData = $this->model->getFiltered([], 1, 20);
 
         $this->view->render('sources_index', [
@@ -36,7 +36,7 @@ class EntertainmentSourceController extends Controller {
             'universes' => $universes,
             'types' => $types,
             'initialData' => $initialData, // Send data med til viewet
-            'scripts' => ['assets/js/entertainment_source_manager.js']
+            'scripts' => ['assets/js/modules/universe/entertainment-source-manager.js']
         ], 'Universe');
     }
 

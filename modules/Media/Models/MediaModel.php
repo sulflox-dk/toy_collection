@@ -88,7 +88,7 @@ class MediaModel {
                 $parentId = $row[$col];
                 // 1. Nulstil alle for dette parent ID
                 $this->db->query("UPDATE $table SET is_main = 0 WHERE $col = :pid", ['pid' => $parentId]);
-                // 2. Sæt den valgte som main
+                // 2. Sï¿½t den valgte som main
                 $this->db->query("UPDATE $table SET is_main = 1 WHERE media_file_id = :mid", ['mid' => $mediaId]);
                 return true; // Succes, stop loop
             }
@@ -126,7 +126,7 @@ class MediaModel {
         
         $images = $this->db->query($sql, ['tid' => $targetId])->fetchAll();
 
-        // Hent tags (uændret)
+        // Hent tags (uï¿½ndret)
         foreach ($images as &$img) {
             $tagSql = "SELECT t.id, t.tag_name 
                        FROM media_tags t
@@ -139,7 +139,7 @@ class MediaModel {
     }
 
     /**
-     * Hjælper til at finde alle media_id'er for en given entity type
+     * Hjï¿½lper til at finde alle media_id'er for en given entity type
      */
     public function getMediaIdsForEntity(string $type, int $entityId): array {
         $table = '';
@@ -194,10 +194,13 @@ class MediaModel {
         $this->db->query("DELETE FROM media_files WHERE id = :id", ['id' => $mediaId]);
 
         // 4. Slet filen fra disken
-        $baseUrl = \CollectionApp\Kernel\Config::get('base_url');
-        $uploadPath = \CollectionApp\Kernel\Config::get('upload_path');
-        $relativeFile = str_replace($baseUrl . 'assets/uploads/', '', $media['file_path']);
-        $fullSystemPath = ROOT_PATH . '/' . $uploadPath . $relativeFile;
+        // NY LOGIK: Brug konstanter i stedet for Config::get
+        
+        // Vi skal finde filnavnet. Databasen indeholder typisk en URL (http://.../assets/uploads/fil.jpg)
+        // Vi skal konvertere det til en fysisk sti (C:/.../assets/uploads/fil.jpg)
+        
+        $fileName = basename($media['file_path']); // Henter "fil.jpg" fra stien
+        $fullSystemPath = UPLOAD_PATH . '/' . $fileName;
 
         if (file_exists($fullSystemPath)) {
             unlink($fullSystemPath);
@@ -209,7 +212,7 @@ class MediaModel {
      * Linker et billede til et Master Toy (Catalog Parent)
      */
     public function linkToMasterParent(int $mediaId, int $toyId) {
-        // Tjek om det er det første billede
+        // Tjek om det er det fï¿½rste billede
         $existing = $this->db->query("SELECT 1 FROM master_toy_media_map WHERE master_toy_id = :tid", ['tid' => $toyId])->fetch();
         $isMain = $existing ? 0 : 1;
 
@@ -272,11 +275,11 @@ class MediaModel {
             $params['tag_id'] = $filters['tag_id'];
         }
 
-        // --- FILTER: SEARCH (Avanceret: søg i filnavn ELLER relaterede toy navne) ---
+        // --- FILTER: SEARCH (Avanceret: sï¿½g i filnavn ELLER relaterede toy navne) ---
         if (!empty($filters['search'])) {
-            // Vi er nødt til at joine det hele for at søge i toy names
-            // For at undgå dublerede joins tjekker vi ikke om de allerede er lavet, 
-            // men bruger bare LEFT JOINs der dækker det hele til søgning.
+            // Vi er nï¿½dt til at joine det hele for at sï¿½ge i toy names
+            // For at undgï¿½ dublerede joins tjekker vi ikke om de allerede er lavet, 
+            // men bruger bare LEFT JOINs der dï¿½kker det hele til sï¿½gning.
             $sql .= " 
                 LEFT JOIN collection_toy_media_map s_ctm ON m.id = s_ctm.media_file_id
                 LEFT JOIN collection_toys s_ct ON s_ctm.collection_toy_id = s_ct.id
@@ -304,8 +307,8 @@ class MediaModel {
             $sql .= " WHERE " . implode(' AND ', $whereClauses);
         }
 
-        // TÆL TOTAL (Til pagination)
-        // Vi erstatter SELECT ... FROM med SELECT COUNT FROM for at være effektive
+        // Tï¿½L TOTAL (Til pagination)
+        // Vi erstatter SELECT ... FROM med SELECT COUNT FROM for at vï¿½re effektive
         $countSql = "SELECT COUNT(DISTINCT m.id) FROM " . substr($sql, strpos($sql, "FROM") + 5);
         $total = $this->db->query($countSql, $params)->fetchColumn();
 
@@ -314,8 +317,8 @@ class MediaModel {
         
         // PDO Limit trick (fordi PDO nogle gange driller med string limit)
         // Vi binder dem manuelt som integers i execute, eller bruger direkte values i stringen hvis sikkert.
-        // Her bruger vi bind params men sørger for typen i execute er implicit via arrayet, hvilket kan drille LIMIT.
-        // Den sikre måde i min simple DB wrapper er at sætte dem direkte, da page/perPage er integers castet i controlleren.
+        // Her bruger vi bind params men sï¿½rger for typen i execute er implicit via arrayet, hvilket kan drille LIMIT.
+        // Den sikre mï¿½de i min simple DB wrapper er at sï¿½tte dem direkte, da page/perPage er integers castet i controlleren.
         $sql = str_replace(':limit', (int)$perPage, $sql);
         $sql = str_replace(':offset', (int)$offset, $sql);
 
@@ -344,7 +347,7 @@ class MediaModel {
             WHERE map.media_file_id = :mid
         ", ['mid' => $mediaId])->fetchAll();
 
-        // 3. Hent Connections (Det tunge læs)
+        // 3. Hent Connections (Det tunge lï¿½s)
         $connections = [];
 
         // A. Collection Parents
@@ -443,22 +446,22 @@ class MediaModel {
     }
 
     /**
-     * Sletter et tag. Hvis $migrateToId er sat, flyttes forbindelserne først.
+     * Sletter et tag. Hvis $migrateToId er sat, flyttes forbindelserne fï¿½rst.
      */
     public function deleteTag(int $id, ?int $migrateToId = null) {
         if ($migrateToId) {
             // 1. MIGRATE LOGIK
-            // Vi bruger IGNORE, fordi hvis en fil allerede har BÅDE det gamle og det nye tag,
+            // Vi bruger IGNORE, fordi hvis en fil allerede har Bï¿½DE det gamle og det nye tag,
             // vil en normal UPDATE fejle pga. primary key collision.
-            // IGNORE gør, at den hopper over dem, der allerede har det nye tag.
+            // IGNORE gï¿½r, at den hopper over dem, der allerede har det nye tag.
             $sql = "UPDATE IGNORE media_file_tags_map SET tag_id = :newId WHERE tag_id = :oldId";
             $this->db->query($sql, ['newId' => $migrateToId, 'oldId' => $id]);
             
-            // Ryd op i dem der evt. ikke blev opdateret (fordi de allerede fandtes på mål-tagget)
+            // Ryd op i dem der evt. ikke blev opdateret (fordi de allerede fandtes pï¿½ mï¿½l-tagget)
             $this->db->query("DELETE FROM media_file_tags_map WHERE tag_id = :oldId", ['oldId' => $id]);
         } else {
             // 2. REN SLETNING
-            // Slet mapningerne først (Cascade burde gøre det, men vi er sikre her)
+            // Slet mapningerne fï¿½rst (Cascade burde gï¿½re det, men vi er sikre her)
             $this->db->query("DELETE FROM media_file_tags_map WHERE tag_id = :id", ['id' => $id]);
         }
 

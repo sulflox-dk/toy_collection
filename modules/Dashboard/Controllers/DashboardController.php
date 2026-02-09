@@ -34,11 +34,11 @@ class DashboardController extends Controller {
             'recentToys'        => $recentToys,
             'viewMode'          => $viewMode,
             'scripts'    => [
-                'assets/js/collection-core.js',
-                'assets/js/collection-form.js',
-                'assets/js/collection_manager.js',
-                'assets/js/collection-media.js',
-                'assets/js/dashboard.js'
+                'assets/js/modules/collection/collection-core.js',
+                'assets/js/modules/collection/collection-form.js',
+                'assets/js/modules/collection/collection-manager.js',
+                'assets/js/modules/collection/collection-media.js',
+                'assets/js/modules/dashboard/dashboard.js'
             ]
         ];
 
