@@ -31,7 +31,7 @@ class MediaLibraryController extends Controller {
                 'assets/js/modules/media/media-library.js' // Vi laver denne fil om lidt
             ],
             'styles' => [
-                'assets/css/media_library.css' // Og denne
+                'assets/css/modules/media-library.css' // Og denne
             ]
         ], 'Media');
     }

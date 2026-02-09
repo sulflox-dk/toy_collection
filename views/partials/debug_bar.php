@@ -2,7 +2,7 @@
 use CollectionApp\Kernel\Config;
 ?>
 
-<link rel="stylesheet" href="<?= Config::get('base_url') ?>assets/css/debug.css">
+<link rel="stylesheet" href="<?= Config::get('base_url') ?>assets/css/core/debug.css">
 
 <div id="debug-bar">
     <div id="debug-header" onclick="document.getElementById('debug-content').style.display = (document.getElementById('debug-content').style.display === 'block' ? 'none' : 'block')">
