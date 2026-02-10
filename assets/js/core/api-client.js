@@ -7,7 +7,7 @@ class ApiClient {
 	 * Base URL for API requests
 	 * @type {string}
 	 */
-	static baseUrl = '/index.php';
+	static baseUrl = typeof SITE_URL !== 'undefined' ? SITE_URL : '/';
 
 	/**
 	 * Default request timeout in milliseconds
@@ -103,6 +103,27 @@ class ApiClient {
 
 		if (contentType && contentType.includes('application/json')) {
 			return await response.json();
+		}
+
+		return await response.text();
+	}
+
+	/**
+	 * Fetch rendered HTML from server
+	 * @param {string} url - Base URL (from buildModuleUrl)
+	 * @param {Object} params - Query parameters
+	 * @returns {Promise<string>} Rendered HTML string
+	 */
+	static async fetchHtml(url, params = {}) {
+		const queryString = new URLSearchParams(params).toString();
+		const fullUrl = queryString ? url + '&' + queryString : url;
+
+		const response = await fetch(fullUrl);
+
+		if (!response.ok) {
+			throw new Error(
+				`Request failed: ${response.status} ${response.statusText}`,
+			);
 		}
 
 		return await response.text();

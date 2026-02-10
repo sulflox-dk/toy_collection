@@ -375,42 +375,6 @@ class ToyController extends Controller {
     }
 
     private function getGridData() {
-        $page = Request::int('page', 1);
-        $perPage = 20;
-        
-        $filters = [
-            'universe_id'           => Request::string('universe_id'),
-            'line_id'               => Request::string('line_id'),
-            'manufacturer_id'       => Request::string('manufacturer_id'),
-            'product_type_id'       => Request::string('product_type_id'),
-            'entertainment_source_id' => Request::string('ent_source_id'),
-            'storage_id'            => Request::string('storage_id'),
-            'source_id'             => Request::string('source_id'),
-            'acquisition_status'    => Request::string('status'),
-            'completeness'          => Request::string('completeness'),
-            'has_missing_parts'     => Request::string('missing_parts'),
-            'image_status'          => Request::string('image_status'),
-            'search'                => Request::string('search')
-        ];
-
-        try {
-            $result = $this->toyModel->getFiltered($filters, $page, $perPage);
-            
-            // Add view mode from cookie
-            $viewMode = $_COOKIE['collection_view_mode'] ?? 'cards';
-            
-            Response::success([
-                'toys' => $result['data'] ?? [],
-                'pagination' => [
-                    'current_page' => $page,
-                    'total_pages' => $result['total_pages'] ?? 1,
-                    'total_items' => $result['total'] ?? 0,
-                    'per_page' => $perPage
-                ],
-                'view_mode' => $viewMode
-            ]);
-        } catch (\Exception $e) {
-            Response::serverError('Failed to load toys: ' . $e->getMessage());
-        }
+        $this->renderGrid();
     }
 }
