@@ -61,6 +61,9 @@ class MasterToyController extends Controller {
             'initialData' => $initialData,
             'view_mode' => $viewMode,
             'scripts' => [
+                "assets/js/modules/catalog/manufacturer-manager.js",
+                "assets/js/modules/catalog/toy-line-manager.js",
+                "assets/js/modules/catalog/master-toy-manager.js",
                 'assets/js/modules/collection/collection-media.js', 
                 'assets/js/modules/catalog/master-toy-manager.js',
                 'assets/js/modules/collection/collection-form.js'
@@ -286,6 +289,98 @@ class MasterToyController extends Controller {
         ];
 
         $this->view->renderPartial('master_toy_grid', $data, 'Catalog');
+    }
+
+    /**
+     * Get master toys by line ID (for cascading dropdowns)
+     * Called by: masterToyManager.getByLine(lineId) in JavaScript
+     * 
+     * Returns full toy data needed for the toy selector widget including:
+     * - id, name, release_year, wave_number
+     * - type_name (from product_types)
+     * - source_material_name (from entertainment_sources)
+     * - image_path (from media_files via master_toy_media_map)
+     */
+    public function get_json() {
+        header('Content-Type: application/json');
+        
+        $lineId = isset($_GET['line_id']) ? (int)$_GET['line_id'] : 0;
+
+        if (!$lineId) {
+            echo json_encode([]);
+            exit;
+        }
+
+        // Use CatalogModel which already has the proper JOIN for images
+        $catalogModel = new \CollectionApp\Modules\Catalog\Models\CatalogModel();
+        $toys = $catalogModel->getMasterToysByLine($lineId);
+
+        echo json_encode($toys);
+        exit;
+    }
+
+    /**
+     * Get master toy by ID with full details
+     * Called by: masterToyManager.getById(id) in JavaScript
+     */
+    public function get_by_id() {
+        header('Content-Type: application/json');
+        
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+        if (!$id) {
+            echo json_encode(['success' => false, 'error' => 'Missing ID']);
+            exit;
+        }
+
+        try {
+            $toy = $this->model->getById($id);
+            
+            if (!$toy) {
+                echo json_encode(['success' => false, 'error' => 'Toy not found']);
+                exit;
+            }
+
+            // Get items
+            $toy['items'] = $this->model->getItems($id);
+
+            echo json_encode(['success' => true, 'data' => $toy]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
+     * Get items for a master toy
+     * Called by: masterToyManager.getItems(masterToyId) in JavaScript
+     * Also used by: CollectionApi.getMasterToyItems(masterToyId)
+     */
+    public function get_items() {
+        header('Content-Type: application/json');
+        
+        $masterToyId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        
+        // Also check master_toy_id parameter (alternative)
+        if (!$masterToyId) {
+            $masterToyId = isset($_GET['master_toy_id']) ? (int)$_GET['master_toy_id'] : 0;
+        }
+
+        if (!$masterToyId) {
+            echo json_encode([]);
+            exit;
+        }
+
+        try {
+            // Use CatalogModel for consistent format with collection-forms.js
+            $catalogModel = new \CollectionApp\Modules\Catalog\Models\CatalogModel();
+            $items = $catalogModel->getMasterToyItems($masterToyId);
+            
+            echo json_encode($items);
+        } catch (\Exception $e) {
+            echo json_encode([]);
+        }
+        exit;
     }
 
 }

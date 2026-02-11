@@ -313,4 +313,8 @@ class MasterToyModel {
             ORDER BY mti.id ASC
         ", ['id' => $masterToyId])->fetchAll();
     }
+
+    public function findByName($name) {
+        return $this->db->query("SELECT * FROM master_toys WHERE name = :name", ['name' => $name])->fetch();
+    }
 }

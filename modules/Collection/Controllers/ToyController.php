@@ -292,6 +292,9 @@ class ToyController extends Controller {
             'grades' => $db->getEnumValues('collection_toys', 'completeness_grade'),
             
             'scripts' => [
+                "assets/js/modules/catalog/manufacturer-manager.js",
+                "assets/js/modules/catalog/toy-line-manager.js",
+                "assets/js/modules/catalog/master-toy-manager.js",   
                 'assets/js/modules/collection/collection-api.js',
                 'assets/js/modules/collection/collection-ui.js',
                 'assets/js/modules/collection/collection-forms.js',
